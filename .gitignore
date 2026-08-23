@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+shashank/
+venv/
+.venv/
+
+# Secrets
+.env
+
+# Runtime data
+app.log
+database/database.db
+
+# Tunnel client binaries
+pktriot.exe
+pktriot-*.zip
+pktriot-*/

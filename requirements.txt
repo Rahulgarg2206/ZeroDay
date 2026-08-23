@@ -1,0 +1,13 @@
+Flask
+Flask-socketio
+python-socketio
+python-engineio
+gevent
+gevent-websocket
+Flask-Mail
+Flask-WTF
+python-dotenv
+Werkzeug
+dnspython
+httpcore
+trio
