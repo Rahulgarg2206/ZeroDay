@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Zero Day Arena{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/common.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        .sidebar {
+            width: 240px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(0, 255, 136, 0.1);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+
+        .nav-item.active {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+            padding-bottom: 5rem;
+        }
+
+        .notifications-dropdown {
+            position: relative;
+            margin-top: auto;
+            padding: 1rem;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #ff0066;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(0, 255, 136, 0.1);
+            padding: 1rem;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-text {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+                padding: 1rem 0.5rem;
+            }
+
+            .logo, .nav-item span {
+                display: none;
+            }
+
+            .nav-item i {
+                margin-right: 0;
+            }
+
+            .nav-item {
+                padding: 1rem;
+                justify-content: center;
+            }
+
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+            }
+
+            .notification-badge {
+                right: 0.2rem;
+                top: 0.2rem;
+            }
+
+            .footer {
+                padding: 0.8rem;
+            }
+
+            .footer-text {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Add notification popup styles */
+        .notification-popup {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+
+        .notification-popup-content {
+            color: #fff;
+        }
+
+        .notification-popup-title {
+            color: #00ff88;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .notification-popup-message {
+            color: #b3b3cc;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <audio id="notificationSound" src="/static/audio/noti.mp3" preload="auto"></audio>
+    <div class="sidebar">
+        <div class="logo">ZDA</div>
+        <nav class="nav-links">
+            <a href="/dashboard" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/challenges" class="nav-item {% if active_page == 'challenges' %}active{% endif %}">
+                <i class="fas fa-flag"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="/team" class="nav-item {% if active_page == 'team' %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                <span>Team</span>
+            </a>
+            <a href="/leaderboard" class="nav-item {% if active_page == 'leaderboard' %}active{% endif %}">
+                <i class="fas fa-trophy"></i>
+                <span>Leaderboard</span>
+            </a>
+            <a href="/profile" class="nav-item {% if active_page == 'profile' %}active{% endif %}">
+                <i class="fas fa-user"></i>
+                <span>Profile</span>
+            </a>
+        </nav>
+        
+        <div class="notifications-dropdown">
+            <a href="/notifications" class="nav-item {% if active_page == 'notifications' %}active{% endif %}">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-text">Powered By Zero Day Arena</div>
+        </div>
+    </footer>
+
+    <script>
+        const notificationSound = document.getElementById('notificationSound');
+
+        function updateNotificationBadge() {
+            fetch('/api/notifications/unread-count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('notificationBadge');
+                    badge.textContent = data.count;
+                    badge.style.display = data.count > 0 ? 'flex' : 'none';
+                });
+        }
+
+        // Set up WebSocket for real-time updates
+        const socket = io();
+        
+        socket.on('new_notification', (notification) => {
+            // Update badge count
+            updateNotificationBadge();
+
+            // Play sound if specified
+            if (notification.playSound) {
+                // Try to play the sound and handle any autoplay restrictions
+                notificationSound.play().catch(e => {
+                    console.log('Error playing sound:', e);
+                });
+            }
+
+            // Show notification popup
+            showNotificationPopup(notification);
+        });
+
+        // Add notification popup
+        function showNotificationPopup(notification) {
+            const popup = document.createElement('div');
+            popup.className = 'notification-popup';
+            popup.innerHTML = `
+                <div class="notification-popup-content">
+                    <div class="notification-popup-title">${notification.title}</div>
+                    <div class="notification-popup-message">${notification.message}</div>
+                </div>
+            `;
+            document.body.appendChild(popup);
+
+            // Remove popup after 5 seconds
+            setTimeout(() => {
+                popup.classList.add('fade-out');
+                setTimeout(() => popup.remove(), 300);
+            }, 5000);
+        }
+
+        // Update badge on page load
+        updateNotificationBadge();
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
