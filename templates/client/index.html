@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero Day Arena - Cybersecurity Battlefield</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        *::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(16, 16, 32, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 16, 32, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hero {
+            text-align: center;
+            margin: 2rem 0;
+            animation: fadeIn 1s ease-out;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            margin-bottom: 1.5rem;
+        }
+
+        .description {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto 3rem;
+            line-height: 1.6;
+            color: #b3b3cc;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 4rem;
+        }
+
+        .button {
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            text-decoration: none;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .primary-button {
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            color: #0a0a0a;
+            font-weight: bold;
+        }
+
+        .secondary-button {
+            background: transparent;
+            border: 2px solid #00ffff;
+            color: #00ffff;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .events-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            padding: 3rem 2rem;
+            backdrop-filter: blur(10px);
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            color: #00ff88;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .countdown-container {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .countdown-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+        }
+
+        .countdown-value {
+            font-size: 3.5rem;
+            font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            animation: pulse 1s infinite;
+        }
+
+        .countdown-label {
+            text-transform: uppercase;
+            color: #b3b3cc;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-top: 0.5rem;
+        }
+
+        .countdown-separator {
+            font-size: 3.5rem;
+            color: #00ff88;
+            animation: blink 1s infinite;
+            align-self: flex-start;
+            margin-top: 0.5rem;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: #b3b3cc;
+            margin-top: auto;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .hero {
+                margin: 1rem 0;
+            }
+
+            .title {
+                font-size: 2.5rem;
+            }
+
+            .description {
+                font-size: 1rem;
+                padding: 0 1rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .button {
+                width: 100%;
+                max-width: 300px;
+                text-align: center;
+                padding: 0.8rem 2rem;
+                font-size: 1rem;
+            }
+
+            .countdown-container {
+                gap: 0.5rem;
+            }
+
+            .countdown-item {
+                min-width: 60px;
+            }
+
+            .countdown-value {
+                font-size: 2rem;
+            }
+
+            .countdown-separator {
+                font-size: 2rem;
+            }
+
+            .countdown-label {
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .title {
+                font-size: 2rem;
+            }
+
+            .countdown-item {
+                min-width: 50px;
+            }
+
+            .countdown-value {
+                font-size: 1.8rem;
+            }
+
+            .countdown-separator {
+                font-size: 1.8rem;
+            }
+
+            .countdown-label {
+                font-size: 0.6rem;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .hero {
+                margin: 1rem 0;
+            }
+
+            .description {
+                margin: 1rem auto 2rem;
+            }
+
+            .events-section {
+                padding: 1.5rem 1rem;
+            }
+        }
+
+        .button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #666;
+            pointer-events: none;
+        }
+
+        .button.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-overlay"></div>
+    <div class="container">
+        <div class="hero">
+            <h1 class="title">Zero Day Arena</h1>
+            <p class="description">Join the ultimate battlefield for cybersecurity enthusiasts. Compete, learn, and conquer challenges.</p>
+            <div class="cta-buttons">
+                {% if allow_registration %}
+                    <a href="/register" class="button primary-button">Join the Battle</a>
+                {% else %}
+                    <button class="button primary-button disabled" disabled title="Registration is currently disabled">
+                        Registration Closed
+                    </button>
+                {% endif %}
+                <a href="/login" class="button secondary-button">Sign In</a>
+            </div>
+        </div>
+
+        <div class="events-section">
+            <h2 class="section-title">Time Remaining</h2>
+            <div class="countdown-container">
+                <div class="countdown-item">
+                    <div class="countdown-value" id="days">00</div>
+                    <div class="countdown-label">Days</div>
+                </div>
+                <div class="countdown-separator">:</div>
+                <div class="countdown-item">
+                    <div class="countdown-value" id="hours">00</div>
+                    <div class="countdown-label">Hours</div>
+                </div>
+                <div class="countdown-separator">:</div>
+                <div class="countdown-item">
+                    <div class="countdown-value" id="minutes">00</div>
+                    <div class="countdown-label">Minutes</div>
+                </div>
+                <div class="countdown-separator">:</div>
+                <div class="countdown-item">
+                    <div class="countdown-value" id="seconds">00</div>
+                    <div class="countdown-label">Seconds</div>
+                </div>
+            </div>
+            <input type="hidden" id="ctfStartTime" value="{{ ctf_start_time }}">
+            <input type="hidden" id="ctfEndTime" value="{{ ctf_end_time }}">
+        </div>
+
+        <footer>
+            Powered By Zero Day Arena
+        </footer>
+    </div>
+
+    <script>
+        function updateCountdown() {
+            const startTimeStr = document.getElementById('ctfStartTime').value;
+            const endTimeStr = document.getElementById('ctfEndTime').value;
+            
+            if (!startTimeStr || !endTimeStr) {
+                document.querySelector('.countdown-container').innerHTML = 
+                    '<div class="countdown-value">CTF timing not set</div>';
+                return;
+            }
+
+            const now = new Date();
+            const startTime = new Date(startTimeStr);
+            const endTime = new Date(endTimeStr);
+
+            let diff;
+            let countdownLabel;
+
+            if (now < startTime) {
+                diff = startTime - now;
+                countdownLabel = "CTF Starts In:";
+            } else if (now > endTime) {
+                document.querySelector('.countdown-container').innerHTML = 
+                    '<div class="countdown-value">CTF has ended</div>';
+                return;
+            } else {
+                diff = endTime - now;
+                countdownLabel = "CTF Ends In:";
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            document.querySelector('.section-title').textContent = countdownLabel;
+            document.getElementById('days').textContent = days.toString().padStart(2, '0');
+            document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+            document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+            document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+        }
+
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+    </script>
+</body>
+</html>
