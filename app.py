@@ -394,6 +394,171 @@ def update_team_points(team_id, points_change, conn=None, user_id=None, descript
 
 
 # Update the update_ctf_timing route
+@app.route('/api/admin/settings/timing', methods=['GET', 'POST'])
+@login_required
+def handle_ctf_timing():
+    # Check if user is logged in
+    if 'user_id' not in session:
+        return jsonify({
+            'success': False,
+            'message': 'Please login to continue',
+            'redirect': '/login'
+        }), 401
+
+    if request.method == 'GET':
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        try:
+            c.execute('''SELECT start_time, end_time 
+                        FROM setting_date_time 
+                        ORDER BY id DESC LIMIT 1''')
+            result = c.fetchone()
+            
+            if result:
+                return jsonify({
+                    'success': True,
+                    'start_time': result[0],
+                    'end_time': result[1]
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'No CTF timing found'
+                })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+        finally:
+            conn.close()
+    
+    elif request.method == 'POST':
+        try:
+            if not request.is_json:
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid request format'
+                }), 400
+
+            data = request.get_json()
+            start_time = data.get('ctf_start_time')
+            end_time = data.get('ctf_end_time')
+            
+            if not start_time or not end_time:
+                return jsonify({
+                    'success': False,
+                    'message': 'Start time and end time are required'
+                }), 400
+                
+            # Validate dates
+            try:
+                start = datetime.strptime(start_time, '%Y-%m-%dT%H:%M')
+                end = datetime.strptime(end_time, '%Y-%m-%dT%H:%M')
+                if end <= start:
+                    return jsonify({
+                        'success': False,
+                        'message': 'End time must be after start time'
+                    }), 400
+                
+                # Check if CTF has already ended
+                if end < datetime.now():
+                    return jsonify({
+                        'success': False,
+                        'message': 'Cannot set end time in the past'
+                    }), 400
+                    
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid date format'
+                }), 400
+                
+            conn = sqlite3.connect(DATABASE_PATH)
+            c = conn.cursor()
+            try:
+                # Update the most recent timing record instead of creating a new one
+                c.execute('''UPDATE setting_date_time 
+                            SET start_time = ?, end_time = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = (SELECT id FROM setting_date_time ORDER BY id DESC LIMIT 1)''',
+                         (start_time, end_time))
+                
+                # If no record exists, create one
+                if c.rowcount == 0:
+                    c.execute('''INSERT INTO setting_date_time 
+                                (start_time, end_time) VALUES (?, ?)''',
+                             (start_time, end_time))
+                
+                conn.commit()
+                
+                # Check if CTF has ended and logout all users
+                if not is_ctf_active():
+                    # Clear all sessions (in a real app, you'd need a proper session store)
+                    session.clear()
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'CTF timing updated successfully'
+                })
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+# Update the reset_ctf_timing function
+def reset_ctf_timing():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    try:
+        default_start = datetime.now() + timedelta(hours=1)
+        default_end = default_start + timedelta(days=1)
+        
+        # Update existing record instead of creating a new one
+        c.execute('''UPDATE setting_date_time 
+                    SET start_time = ?, end_time = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = (SELECT id FROM setting_date_time ORDER BY id DESC LIMIT 1)''',
+                 (default_start.strftime('%Y-%m-%dT%H:%M'),
+                  default_end.strftime('%Y-%m-%dT%H:%M')))
+        
+        # If no record exists, create one
+        if c.rowcount == 0:
+            c.execute('''INSERT INTO setting_date_time 
+                        (start_time, end_time) VALUES (?, ?)''',
+                     (default_start.strftime('%Y-%m-%dT%H:%M'),
+                      default_end.strftime('%Y-%m-%dT%H:%M')))
+        
+        conn.commit()
+    except sqlite3.Error as e:
+        logging.error(f"Error resetting CTF timing: {str(e)}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+def check_ctf_status():
+    """Check CTF status and logout users if CTF has ended"""
+    if 'user_id' in session and not is_ctf_active():
+        session.clear()
+        flash('CTF has ended. All users have been logged out.')
+        return redirect(url_for('index'))
+    return None
+
+# Add this decorator to routes that require active CTF
+def ctf_active_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_ctf_active():
+            if 'user_id' in session:
+                session.clear()
+            flash('CTF is not currently active')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Update the index route to separate registration and CTF status
 
 if __name__ == '__main__':
     try:
