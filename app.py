@@ -559,6 +559,246 @@ def ctf_active_required(f):
     return decorated_function
 
 # Update the index route to separate registration and CTF status
+@app.route('/')
+def index():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    try:
+        # Get CTF timing and registration status
+        c.execute('''SELECT s.value as registration, dt.start_time, dt.end_time 
+                    FROM settings s 
+                    LEFT JOIN setting_date_time dt ON 1=1
+                    WHERE s.key = 'allow_registration' 
+                    ORDER BY dt.id DESC LIMIT 1''')
+        result = c.fetchone()
+        
+        settings = {
+            'allow_registration': result[0] if result else 'true',
+            'ctf_start_time': result[1] if result and result[1] else '',
+            'ctf_end_time': result[2] if result and result[2] else ''
+        }
+        
+        ctf_active = is_ctf_active()
+        allow_registration = settings['allow_registration'].lower() == 'true'
+        
+        # Only check CTF timing for logged-in users
+        if 'user_id' in session and not ctf_active:
+            session.clear()
+            flash('CTF has ended. All users have been logged out.')
+            
+        if 'user_id' in session and ctf_active:
+            return redirect(url_for('dashboard'))
+            
+        return render_template('client/index.html', 
+                             allow_registration=allow_registration,
+                             ctf_start_time=settings['ctf_start_time'],
+                             ctf_end_time=settings['ctf_end_time'])
+                             
+    except Exception as e:
+        logging.error(f"Error in index route: {str(e)}")
+        flash('An error occurred. Please try again later.')
+        return render_template('client/index.html',
+                             allow_registration=False,
+                             ctf_start_time='',
+                             ctf_end_time='')
+    finally:
+        conn.close()
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    # Only check CTF timing for existing users, not for login page access
+    if request.method == 'GET':
+        registration_success = request.args.get('registration_success', False)
+        return render_template('client/login.html', registration_success=registration_success)
+    
+    # Handle POST request for login
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            password = hash_password(request.form.get('password'))
+            
+            if not email or not password:
+                return jsonify({
+                    'success': False,
+                    'message': 'Email and password are required'
+                }), 400
+            
+            conn = sqlite3.connect(DATABASE_PATH)
+            c = conn.cursor()
+            
+            try:
+                # Check if user exists and credentials are correct
+                c.execute('SELECT id, username, is_admin, is_leader FROM users WHERE email = ? AND password = ?',
+                         (email, password))
+                user = c.fetchone()
+                
+                if user:
+                    # Set session data
+                    session['user_id'] = user[0]
+                    session['username'] = user[1]
+                    session['is_admin'] = bool(user[2])  # Set admin status based on is_admin
+                    session['is_leader'] = bool(user[3])  # Set team leader status separately
+                    
+                    # If user is admin, redirect to admin root
+                    if session['is_admin']:
+                        return jsonify({
+                            'success': True,
+                            'message': 'Admin login successful',
+                            'redirect': url_for('admin_root')
+                        })
+                    
+                    # For regular users, check CTF timing
+                    if not is_ctf_active():
+                        session.clear()  # Clear session if CTF is not active
+                        return jsonify({
+                            'success': False,
+                            'message': 'CTF is not currently active. Please wait for the start time.'
+                        }), 403
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': 'Login successful',
+                        'redirect': url_for('dashboard')
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Invalid email or password'
+                    }), 401
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            logging.error(f"Login error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'An error occurred during login. Please try again.'
+            }), 500
+            
+    return render_template('client/login.html')
+
+@app.route('/dashboard')
+@login_required
+@ctf_active_required
+def dashboard():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        user_id = session['user_id']
+        
+        # Fetch user details with proper error handling - Updated to get team points
+        c.execute('''
+            SELECT u.username, COALESCE(t.name, 'No Team') as team_name,
+                   COUNT(DISTINCT sc.challenge_id) as solved_challenges,
+                   COALESCE(t.points, 0) as total_points,
+                   COALESCE(t.is_banned, 0) as is_banned
+            FROM users u
+            LEFT JOIN teams t ON u.team_id = t.id
+            LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+            WHERE u.id = ?
+            GROUP BY u.id
+        ''', (user_id,))
+        
+        user_data = c.fetchone()
+        if not user_data:
+            flash('User data not found')
+            return redirect(url_for('login'))
+            
+        username, team_name, solved_challenges, total_points, is_banned = user_data
+        
+        # Get global rank with proper error handling
+        global_rank = 0
+        if not is_banned:
+            c.execute('''WITH team_ranks AS (
+                           SELECT id, 
+                                  RANK() OVER (ORDER BY points DESC) as rank
+                           FROM teams
+                           WHERE is_banned = 0
+                        )
+                        SELECT rank 
+                        FROM team_ranks 
+                        WHERE id = (SELECT team_id FROM users WHERE id = ?)''', 
+                     (user_id,))
+            rank_result = c.fetchone()
+            global_rank = rank_result[0] if rank_result else 0
+        
+        # Fetch active challenges with proper error handling
+        c.execute('''
+            SELECT id, short_id, title, description, points, category, difficulty
+            FROM challenges
+            WHERE is_hidden = 0
+            ORDER BY created_at DESC
+            LIMIT 2
+        ''')
+        
+        challenges = []
+        for row in c.fetchall():
+            challenges.append({
+                'id': row[0],
+                'short_id': row[1],
+                'title': row[2],
+                'description': row[3],
+                'points': row[4],
+                'category': row[5],
+                'difficulty': row[6]
+            })
+        
+        # Fetch recent activity for the team with proper error handling
+        activities = []
+        team_id = None
+        
+        # Get user's team_id first
+        c.execute("SELECT team_id FROM users WHERE id=?", (user_id,))
+        team_row = c.fetchone()
+        if team_row:
+            team_id = team_row[0]
+        
+        if team_id:
+            c.execute('''
+                SELECT activity_time, username, action, detail 
+                FROM (
+                    SELECT sc.solved_at as activity_time, 
+                           u.username, 
+                           'solved challenge' as action, 
+                           c.title as detail
+                    FROM solved_challenges sc
+                    JOIN users u ON sc.user_id = u.id
+                    JOIN challenges c ON sc.challenge_id = c.id
+                    WHERE u.team_id = ?
+                    UNION ALL
+                    SELECT uh.unlocked_at as activity_time, 
+                           u.username, 
+                           'unlocked hint' as action, 
+                           h.hint_text as detail
+                    FROM unlocked_hints uh
+                    JOIN users u ON uh.user_id = u.id
+                    JOIN hints h ON uh.hint_id = h.id
+                    WHERE u.team_id = ?
+                ) 
+                ORDER BY activity_time DESC 
+                LIMIT 10
+            ''', (team_id, team_id))
+            
+            activities = c.fetchall()
+        
+        return render_template('client/dashboard.html',
+                             username=username,
+                             team_name=team_name,
+                             solved_challenges=solved_challenges,
+                             total_points=total_points,
+                             global_rank=global_rank,
+                             challenges=challenges,
+                             activities=activities,
+                             is_banned=is_banned)
+                             
+    except Exception as e:
+        logging.error(f"Dashboard error: {str(e)}")
+        flash('An error occurred while loading the dashboard')
+        return redirect(url_for('index'))
+        
+    finally:
+        conn.close()
 
 if __name__ == '__main__':
     try:
