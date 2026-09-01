@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            padding: 20px;
+        }
+
+        .register-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #b3b3cc;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .team-options {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .team-option {
+            flex: 1;
+            padding: 1rem;
+            text-align: center;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .team-option.active {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+        }
+
+        .team-fields {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .team-fields.active {
+            display: block;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            border: none;
+            border-radius: 5px;
+            color: #0a0a0a;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 1rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #b3b3cc;
+        }
+
+        .login-link a {
+            color: #00ffff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .login-link a:hover {
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .register-card {
+                padding: 1.5rem;
+            }
+
+            .title {
+                font-size: 1.5rem;
+            }
+
+            .team-options {
+                flex-direction: column;
+            }
+        }
+
+        .notifications-dropdown {
+            position: relative;
+            margin-top: auto;
+            padding: 1rem;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #ff0066;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .notification-badge {
+                right: 0.2rem;
+                top: 0.2rem;
+            }
+        }
+
+        /* Toast customization */
+        .toast-error {
+            background-color: #ff3366 !important;
+        }
+        
+        .toast-success {
+            background-color: #00ff88 !important;
+        }
+        
+        #toast-container > div {
+            opacity: 1;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .team-option.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(102, 102, 102, 0.2) !important;
+            border-color: rgba(102, 102, 102, 0.3) !important;
+        }
+
+        .team-option.disabled:hover {
+            background: rgba(102, 102, 102, 0.2) !important;
+            border-color: rgba(102, 102, 102, 0.3) !important;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 2rem;
+            border-radius: 5px;
+            font-family: 'Share Tech Mono', monospace;
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .success-toast {
+            background: rgba(0, 255, 136, 0.9);
+            color: #000;
+        }
+
+        .error-toast {
+            background: rgba(255, 0, 102, 0.9);
+            color: #fff;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .submit-btn:disabled:hover {
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-content">
+        <div class="register-card">
+            <h1 class="title">Join Zero Day Arena</h1>
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-info">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form id="registerForm" action="/register" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input type="text" id="username" name="username" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email</label>
+                    <input type="email" id="email" name="email" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-input" required>
+                </div>
+
+                <div class="team-options">
+                    {% if allow_team_creation %}
+                        <div class="team-option" data-option="create">Create Team</div>
+                    {% else %}
+                        <div class="team-option disabled" title="Team creation is currently disabled">Create Team</div>
+                    {% endif %}
+                    <div class="team-option" data-option="join">Join Team</div>
+                </div>
+
+                <div id="team-fields">
+                    {% if allow_team_creation %}
+                        <div id="createTeamFields" class="team-fields">
+                            <div class="form-group">
+                                <label class="form-label" for="team_name">Team Name</label>
+                                <input type="text" id="team_name" name="team_name" class="form-input">
+                            </div>
+                        </div>
+                    {% endif %}
+                    <div id="joinTeamFields" class="team-fields">
+                        <div class="form-group">
+                            <label class="form-label" for="team_code">Team Code</label>
+                            <input type="text" id="team_code" name="team_code" class="form-input">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="registerBtn">Register</button>
+            </form>
+            <div class="login-link">
+                Already have an account? <a href="/login">Sign In</a>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+    <script>
+        const teamOptions = document.querySelectorAll('.team-option:not(.disabled)');
+        const createTeamFields = document.getElementById('createTeamFields');
+        const joinTeamFields = document.getElementById('joinTeamFields');
+        const teamCode = document.getElementById('team_code');
+
+        // Auto-convert team code to uppercase
+        if (teamCode) {
+            teamCode.addEventListener('input', function(e) {
+                this.value = this.value.toUpperCase();
+            });
+        }
+
+        // Configure toastr
+        toastr.options = {
+            "closeButton": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "timeOut": "3000"
+        };
+
+        let lastSelectedOption = null;
+
+        teamOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                if (option.classList.contains('disabled')) {
+                    return;
+                }
+                
+                // Remove active class from all options
+                teamOptions.forEach(opt => opt.classList.remove('active'));
+                // Add active class to clicked option
+                option.classList.add('active');
+
+                // Reset form fields
+                if (document.getElementById('team_name')) {
+                    document.getElementById('team_name').value = '';
+                }
+                if (document.getElementById('team_code')) {
+                    document.getElementById('team_code').value = '';
+                }
+
+                // Show/hide appropriate fields
+                if (option.dataset.option === 'create' && createTeamFields) {
+                    createTeamFields.classList.add('active');
+                    joinTeamFields.classList.remove('active');
+                    if (document.getElementById('team_name')) {
+                        document.getElementById('team_name').required = true;
+                    }
+                    document.getElementById('team_code').required = false;
+                } else if (option.dataset.option === 'join') {
+                    if (createTeamFields) createTeamFields.classList.remove('active');
+                    joinTeamFields.classList.add('active');
+                    document.getElementById('team_code').required = true;
+                    if (document.getElementById('team_name')) {
+                        document.getElementById('team_name').required = false;
+                    }
+                }
+            });
+        });
+
+        // Select "Join Team" by default if team creation is disabled
+        {% if not allow_team_creation %}
+            const joinTeamOption = document.querySelector('[data-option="join"]');
+            if (joinTeamOption) {
+                joinTeamOption.click();
+            }
+        {% endif %}
+
+        // Add this to the existing script section
+        const form = document.getElementById('registerForm');
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        // Add password validation function
+        function validatePassword() {
+            if (password.value !== confirmPassword.value) {
+                confirmPassword.setCustomValidity("Passwords do not match");
+                return false;
+            } else {
+                confirmPassword.setCustomValidity("");
+                
+                // Check password strength
+                const hasUpperCase = /[A-Z]/.test(password.value);
+                const hasLowerCase = /[a-z]/.test(password.value);
+                const hasNumbers = /\d/.test(password.value);
+                const isLongEnough = password.value.length >= 8;
+                
+                if (!isLongEnough) {
+                    password.setCustomValidity("Password must be at least 8 characters long");
+                    return false;
+                }
+                
+                if (!(hasUpperCase && hasLowerCase && hasNumbers)) {
+                    password.setCustomValidity("Password must contain at least one uppercase letter, one lowercase letter, and one number");
+                    return false;
+                }
+                
+                password.setCustomValidity("");
+                return true;
+            }
+        }
+
+        // Add event listeners for password validation
+        password.addEventListener('change', validatePassword);
+        confirmPassword.addEventListener('change', validatePassword);
+
+        // Add form submission handler
+        const registerBtn = document.getElementById('registerBtn');
+        let isSubmitting = false;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (isSubmitting) {
+                return; // Prevent multiple submissions
+            }
+            
+            // Validate passwords first
+            if (!validatePassword()) {
+                if (password.validationMessage) {
+                    showToast(password.validationMessage, true);
+                } else if (confirmPassword.validationMessage) {
+                    showToast(confirmPassword.validationMessage, true);
+                }
+                return;
+            }
+            
+            try {
+                isSubmitting = true;
+                registerBtn.disabled = true;
+                registerBtn.textContent = 'Please wait...';
+                showToast('Processing registration, please wait...', false);
+                
+                const formData = new FormData(e.target);
+                
+                // Check if creating team but no team name provided
+                const createTeamOption = document.querySelector('.team-option[data-option="create"]');
+                if (createTeamOption && createTeamOption.classList.contains('active')) {
+                    const teamName = formData.get('team_name');
+                    if (!teamName) {
+                        showToast('Team name is required when creating a team', true);
+                        return;
+                    }
+                    formData.delete('team_code'); // Remove team code if creating team
+                }
+                
+                // Check if joining team but no team code provided
+                const joinTeamOption = document.querySelector('.team-option[data-option="join"]');
+                if (joinTeamOption && joinTeamOption.classList.contains('active')) {
+                    const teamCode = formData.get('team_code');
+                    if (!teamCode) {
+                        showToast('Team code is required when joining a team', true);
+                        return;
+                    }
+                    formData.delete('team_name'); // Remove team name if joining team
+                }
+                
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(data.message, false);
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 2000);
+                } else {
+                    showToast(data.message, true);
+                    registerBtn.disabled = false;
+                    registerBtn.textContent = 'Register';
+                }
+            } catch (error) {
+                showToast('An error occurred. Please try again.', true);
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'Register';
+            } finally {
+                isSubmitting = false;
+            }
+        });
+
+        function showToast(message, isError = false) {
+            const existingToasts = document.querySelectorAll('.toast');
+            existingToasts.forEach(toast => toast.remove());
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${isError ? 'error-toast' : 'success-toast'}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

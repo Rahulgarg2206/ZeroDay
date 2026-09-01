@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            padding: 20px;
+        }
+
+        .otp-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #b3b3cc;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.3s ease;
+            text-align: center;
+            letter-spacing: 0.5em;
+            font-size: 1.2em;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            border: none;
+            border-radius: 5px;
+            color: #0a0a0a;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 1rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .resend-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #b3b3cc;
+        }
+
+        .resend-link a {
+            color: #00ffff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .resend-link a:hover {
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 2rem;
+            border-radius: 5px;
+            font-family: 'Share Tech Mono', monospace;
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+        }
+
+        .error-toast {
+            background: rgba(255, 0, 102, 0.9);
+            color: #fff;
+        }
+
+        .success-toast {
+            background: rgba(0, 255, 136, 0.9);
+            color: #000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .countdown {
+            color: #00ff88;
+            font-size: 0.9em;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="otp-card">
+        <h2 class="title">Verify Email</h2>
+        <p class="subtitle">Please enter the OTP sent to<br>{{ email }}</p>
+        
+        <form id="otpForm">
+            <input type="hidden" id="email" value="{{ email }}">
+            <div class="form-group">
+                <input type="text" id="otp" name="otp" class="form-input" 
+                       placeholder="Enter OTP" maxlength="6" required
+                       pattern="\d{6}" title="Please enter 6 digits">
+            </div>
+            <button type="submit" class="submit-btn">Verify OTP</button>
+        </form>
+        
+        <div class="resend-link">
+            <span id="countdown" class="countdown"></span>
+            <p>Didn't receive OTP? <a href="#" id="resendOtp" style="display: none;">Resend OTP</a></p>
+        </div>
+    </div>
+
+    <script>
+        let countdownTime = 30;
+        const countdownEl = document.getElementById('countdown');
+        const resendLink = document.getElementById('resendOtp');
+
+        function updateCountdown() {
+            if (countdownTime > 0) {
+                countdownEl.textContent = `Resend available in ${countdownTime} seconds`;
+                countdownTime--;
+                setTimeout(updateCountdown, 1000);
+            } else {
+                countdownEl.textContent = '';
+                resendLink.style.display = 'inline';
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const existingToasts = document.querySelectorAll('.toast');
+            existingToasts.forEach(toast => toast.remove());
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${isError ? 'error-toast' : 'success-toast'}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        document.getElementById('otpForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch(`/verify-otp/${document.getElementById('email').value}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: document.getElementById('email').value,
+                        otp: document.getElementById('otp').value
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('OTP verified successfully!');
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1000);
+                } else {
+                    showToast(data.message, true);
+                }
+            } catch (error) {
+                showToast('An error occurred. Please try again.', true);
+            }
+        });
+
+        document.getElementById('resendOtp').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                resendLink.style.display = 'none';
+                showToast('Sending new OTP...', false);
+                
+                const response = await fetch('/resend-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: document.getElementById('email').value
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('New OTP has been sent to your email!', false);
+                    countdownTime = 30;
+                    updateCountdown();
+                } else {
+                    showToast(data.message, true);
+                    resendLink.style.display = 'inline';
+                }
+            } catch (error) {
+                showToast('Failed to resend OTP. Please try again.', true);
+                resendLink.style.display = 'inline';
+            }
+        });
+
+        // Start countdown on page load
+        updateCountdown();
+
+        // Format OTP input
+        const otpInput = document.getElementById('otp');
+        otpInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+        });
+
+        // Add toast animation styles
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = `
+            .toast {
+                transition: opacity 0.3s ease-in-out;
+            }
+            
+            .success-toast {
+                background: rgba(0, 255, 136, 0.9);
+                color: #000;
+            }
+            
+            .error-toast {
+                background: rgba(255, 0, 102, 0.9);
+                color: #fff;
+            }
+        `;
+        document.head.appendChild(styleSheet);
+    </script>
+</body>
+</html>
