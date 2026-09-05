@@ -1,0 +1,33 @@
+<div class="sidebar">
+    <div class="logo">ZDA</div>
+    <nav class="nav-links">
+        <a href="/dashboard" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/challenges" class="nav-item {% if active_page == 'challenges' %}active{% endif %}">
+            <i class="fas fa-flag"></i>
+            <span>Challenges</span>
+        </a>
+        <a href="/team" class="nav-item {% if active_page == 'team' %}active{% endif %}">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+        <a href="/leaderboard" class="nav-item {% if active_page == 'leaderboard' %}active{% endif %}">
+            <i class="fas fa-trophy"></i>
+            <span>Leaderboard</span>
+        </a>
+        <a href="/profile" class="nav-item {% if active_page == 'profile' %}active{% endif %}">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+    
+    <div class="notifications-dropdown">
+        <a href="/notifications" class="nav-item">
+            <i class="fas fa-bell"></i>
+            <span>Notifications</span>
+        </a>
+        <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
+    </div>
+</div> 
