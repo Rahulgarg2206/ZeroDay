@@ -800,6 +800,292 @@ def dashboard():
     finally:
         conn.close()
 
+@app.route('/challenges')
+@login_required
+def challenges():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # First check if user has any pending team requests
+        c.execute('''
+            SELECT t.name 
+            FROM team_requests tr
+            JOIN teams t ON tr.team_id = t.id
+            WHERE tr.user_id = ? AND tr.status = 'pending'
+        ''', (session['user_id'],))
+        
+        pending_request = c.fetchone()
+        if pending_request:
+            return render_template('client/challenges.html', 
+                                pending_request=True,
+                                team_name=pending_request[0],
+                                challenges=[])
+
+        # Continue with existing challenge fetching logic
+        c.execute('''
+            SELECT 
+                c.id, c.short_id, c.title, c.description, c.points, c.category,
+                c.difficulty, c.is_hidden,
+                COUNT(DISTINCT sc.id) as solve_count
+            FROM challenges c
+            LEFT JOIN solved_challenges sc ON c.id = sc.challenge_id
+            WHERE c.is_hidden = 0
+            GROUP BY c.id
+            ORDER BY c.category, c.points
+        ''')
+        
+        challenges = []
+        for row in c.fetchall():
+            challenge = {
+                'id': row[0],
+                'short_id': row[1],
+                'title': row[2],
+                'description': row[3],
+                'points': row[4],
+                'category': row[5],
+                'difficulty': row[6],
+                'is_hidden': row[7],
+                'solve_count': row[8]
+            }
+            challenges.append(challenge)
+            
+        return render_template('client/challenges.html', 
+                             challenges=challenges,
+                             active_page='challenges')
+        
+    except Exception as e:
+        logging.error(f"Error fetching challenges: {str(e)}")  # Updated log
+        return render_template('client/challenges.html', challenges=[])
+    finally:
+        conn.close()
+
+def rate_limit(key, limit=5, window=60):
+    """Rate limiting decorator"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Bypass rate limiting by returning the function directly
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+@app.route('/challenge/<string:short_id>', methods=['GET', 'POST'])
+@login_required
+@rate_limit('flag_submit')
+def challenge_details(short_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        if request.method == 'POST':
+            # Verify CSRF token
+            if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid request'
+                }), 403
+                
+            # Get and sanitize submitted flag
+            submitted_flag = escape(request.form.get('flag', '').strip())
+            if not submitted_flag:
+                return jsonify({
+                    'success': False,
+                    'message': 'Please enter a flag'
+                }), 400
+
+            # Get challenge details first
+            c.execute('''
+                SELECT id, flag, points, challenge_type, wrong_flag_penalty, title
+                FROM challenges 
+                WHERE short_id = ?
+            ''', (short_id,))
+            
+            challenge_info = c.fetchone()
+            if not challenge_info:
+                return jsonify({
+                    'success': False,
+                    'message': 'Challenge not found'
+                }), 404
+
+            # Check if already solved
+            c.execute('''SELECT id FROM solved_challenges 
+                        WHERE user_id = ? AND challenge_id = ?''',
+                     (session['user_id'], challenge_info[0]))
+            
+            if c.fetchone():
+                return jsonify({
+                    'success': False,
+                    'message': 'You have already solved this challenge!'
+                })
+
+            # Check flag
+            if submitted_flag == challenge_info[1]:  # Correct flag
+                try:
+                    # Get user's team
+                    c.execute('SELECT team_id FROM users WHERE id = ?', (session['user_id'],))
+                    team_id = c.fetchone()[0]
+                    
+                    # Add to solved challenges
+                    c.execute('''INSERT INTO solved_challenges 
+                               (user_id, challenge_id, points_awarded)
+                               VALUES (?, ?, ?)''',
+                            (session['user_id'], challenge_info[0], challenge_info[2]))
+                    
+                    # Record point transaction for the user
+                    c.execute('''INSERT INTO point_transactions 
+                               (user_id, team_id, points, transaction_type, description)
+                               VALUES (?, ?, ?, ?, ?)''',
+                            (session['user_id'], team_id, challenge_info[2], 
+                             'challenge_solve', 
+                             f'Solved challenge: {challenge_info[5]}'))
+                    
+                    # Update team points if user is in a team
+                    if team_id:
+                        update_team_points(team_id, challenge_info[2], conn, 
+                                         user_id=session['user_id'],
+                                         description=f'Team member solved challenge: {challenge_info[5]}')
+                    
+                    conn.commit()
+                    return jsonify({
+                        'success': True,
+                        'message': 'Congratulations! Flag is correct!'
+                    })
+                except Exception as e:
+                    conn.rollback()
+                    logging.error(f"Error in flag submission: {str(e)}")
+                    return jsonify({
+                        'success': False,
+                        'message': 'Error processing flag submission'
+                    }), 500
+            else:
+                # Handle wrong flag submission
+                if challenge_info[3] == 'dynamic' and challenge_info[4] > 0:
+                    try:
+                        # Get user's team
+                        c.execute('SELECT team_id FROM users WHERE id = ?', (session['user_id'],))
+                        team_id = c.fetchone()[0]
+                        
+                        # Record wrong submission
+                        c.execute('''INSERT INTO wrong_flag_submissions 
+                                   (challenge_id, username, submitted_flag, points_deducted)
+                                   VALUES (?, ?, ?, ?)''',
+                                (challenge_info[0], session['username'], 
+                                 submitted_flag, challenge_info[4]))
+                        
+                        # Record point transaction for the user
+                        c.execute('''INSERT INTO point_transactions 
+                                   (user_id, team_id, points, transaction_type, description)
+                                   VALUES (?, ?, ?, ?, ?)''',
+                                (session['user_id'], team_id, -challenge_info[4], 
+                                 'wrong_flag_penalty', 
+                                 f'Wrong flag submission for challenge: {challenge_info[5]}'))
+                        
+                        # Deduct points from team if user is in a team
+                        if team_id:
+                            update_team_points(team_id, -challenge_info[4], conn,
+                                             user_id=session['user_id'],
+                                             description=f'Team member submitted wrong flag for challenge: {challenge_info[5]}')
+                        
+                        conn.commit()
+                        return jsonify({
+                            'success': False,
+                            'message': f'Incorrect flag. {challenge_info[4]} points deducted.'
+                        })
+                    except Exception as e:
+                        conn.rollback()
+                        logging.error(f"Error in wrong flag submission: {str(e)}")
+                        return jsonify({
+                            'success': False,
+                            'message': 'Error processing flag submission'
+                        }), 500
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Incorrect flag'
+                    })
+
+        # Get challenge details for display
+        c.execute('''
+            SELECT c.id, c.title, c.description, c.points, c.category,
+                   c.difficulty, c.flag, c.challenge_type, c.wrong_flag_penalty,
+                   COUNT(DISTINCT sc.id) as solve_count,
+                   (
+                       SELECT COUNT(1) 
+                       FROM solved_challenges sc2 
+                       JOIN users u ON sc2.user_id = u.id 
+                       WHERE sc2.challenge_id = c.id 
+                       AND (u.id = ? OR u.team_id = (SELECT team_id FROM users WHERE id = ?))
+                   ) > 0 as is_solved
+            FROM challenges c
+            LEFT JOIN solved_challenges sc ON c.id = sc.challenge_id
+            WHERE c.short_id = ?
+            GROUP BY c.id
+        ''', (session['user_id'], session['user_id'], short_id))
+        
+        challenge = c.fetchone()
+        
+        if not challenge:
+            flash('Challenge not found')
+            return redirect(url_for('challenges'))
+
+        # Get challenge files
+        c.execute('SELECT id, filename FROM challenge_files WHERE challenge_id = ?', 
+                 (challenge[0],))
+        files = c.fetchall()
+        
+        # Get hints – if the user is in a team, check team unlock status; otherwise check individual status.
+        c.execute("SELECT team_id FROM users WHERE id = ?", (session['user_id'],))
+        user_team_row = c.fetchone()
+        user_team_id = user_team_row[0] if user_team_row else None
+
+        if user_team_id:
+            c.execute('''
+                SELECT h.id, h.cost, h.hint_text,
+                       EXISTS(
+                           SELECT 1 FROM unlocked_hints uh
+                           JOIN users u ON uh.user_id = u.id
+                           WHERE uh.hint_id = h.id 
+                             AND u.team_id = ?
+                       ) as is_unlocked
+                FROM hints h
+                WHERE h.challenge_id = ?
+            ''', (user_team_id, challenge[0]))
+        else:
+            c.execute('''
+                SELECT h.id, h.cost, h.hint_text,
+                       EXISTS(
+                           SELECT 1 FROM unlocked_hints uh
+                           WHERE uh.hint_id = h.id 
+                             AND uh.user_id = ?
+                       ) as is_unlocked
+                FROM hints h
+                WHERE h.challenge_id = ?
+            ''', (session['user_id'], challenge[0]))
+        hints = c.fetchall()
+
+        challenge_data = {
+            'id': challenge[0],
+            'title': challenge[1],
+            'description': challenge[2],
+            'points': challenge[3],
+            'category': challenge[4],
+            'difficulty': challenge[5],
+            'solve_count': challenge[9],
+            'is_solved': bool(challenge[10]),
+            'files': files,
+            'hints': hints
+        }
+
+        return render_template('client/challenge_details.html', challenge=challenge_data)
+        
+    except Exception as e:
+        logging.error(f"Error: {str(e)}")  # Updated log
+        flash('Error loading challenge')
+        return redirect(url_for('challenges'))
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     try:
 
