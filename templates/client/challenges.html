@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Challenges - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/common.css" rel="stylesheet">
+    <style>
+        /* Include the sidebar styles from dashboard.html */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        /* Sidebar styles (same as dashboard) */
+        .sidebar {
+            width: 240px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(0, 255, 136, 0.1);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main content styles */
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .category-filter {
+            padding: 0.8rem 1.5rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 25px;
+            color: #b3b3cc;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .category-filter:hover {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+
+        .category-filter.active {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .challenges-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .challenge-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            height: 200px;
+        }
+
+        .challenge-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.2);
+        }
+
+        .challenge-content {
+            padding: 1.5rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .challenge-header {
+            margin-bottom: 1rem;
+        }
+
+        .challenge-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: #00ffff;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .challenge-category {
+            font-size: 0.9rem;
+            color: #b3b3cc;
+        }
+
+        .challenge-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .challenge-points {
+            font-size: 1.1rem;
+            color: #00ff88;
+        }
+
+        .difficulty {
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .easy { background: rgba(0, 255, 0, 0.2); color: #00ff00; }
+        .medium { background: rgba(255, 165, 0, 0.2); color: #ffa500; }
+        .hard { background: rgba(255, 0, 0, 0.2); color: #ff0000; }
+
+        .solve-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            border: none;
+            border-radius: 5px;
+            color: #0a0a0a;
+            font-family: 'Share Tech Mono', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .solve-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+                padding: 1rem 0.5rem;
+            }
+
+            .logo, .nav-item span {
+                display: none;
+            }
+
+            .nav-item i {
+                margin-right: 0;
+            }
+
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+            }
+
+            .filters {
+                gap: 0.5rem;
+                justify-content: center;
+            }
+
+            .category-filter {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        .notifications-dropdown {
+            position: relative;
+            margin-top: auto;
+            padding: 1rem;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #ff0066;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .notification-badge {
+                right: 0.2rem;
+                top: 0.2rem;
+            }
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(0, 255, 136, 0.1);
+            padding: 1rem;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-text {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Adjust main content to prevent footer overlap */
+        .main-content {
+            padding-bottom: 5rem;
+        }
+
+        @media (max-width: 768px) {
+            .footer {
+                padding: 0.8rem;
+            }
+
+            .footer-text {
+                font-size: 0.9rem;
+            }
+        }
+
+        .pending-request-alert {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 2rem;
+            text-align: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .pending-request-alert i {
+            font-size: 2rem;
+            color: #ffc107;
+            margin-bottom: 1rem;
+        }
+
+        .pending-request-alert p {
+            color: #ffc107;
+            font-size: 1.2rem;
+            margin: 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">ZDA</div>
+        <a href="/dashboard" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/challenges" class="nav-item active">
+            <i class="fas fa-flag"></i>
+            <span>Challenges</span>
+        </a>
+        <a href="/team" class="nav-item">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+        <a href="/leaderboard" class="nav-item">
+            <i class="fas fa-trophy"></i>
+            <span>Leaderboard</span>
+        </a>
+        <a href="/profile" class="nav-item">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+        <div class="notifications-dropdown">
+            <a href="/notifications" class="nav-item {% if active_page == 'notifications' %}active{% endif %}">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        {% if pending_request %}
+        <div class="pending-request-alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>Your request to join team "{{ team_name }}" is still pending. You can view challenges after your request is approved.</p>
+        </div>
+        {% else %}
+        <div class="filters">
+            <button class="category-filter active" data-category="all">All</button>
+            {% set categories = challenges|map(attribute='category')|unique|list %}
+            {% for category in categories %}
+            <button class="category-filter" data-category="{{ category|lower }}">
+                {{ category }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div class="challenges-grid">
+            {% for challenge in challenges %}
+            {% if not challenge.is_hidden %}
+            <div class="challenge-card" data-category="{{ challenge.category|lower }}">
+                <div class="challenge-content">
+                    <div class="challenge-header">
+                        <h3 class="challenge-name" title="{{ challenge.title }}">
+                            {% if challenge.title|length > 17 %}
+                                {{ challenge.title[:17] }}...
+                            {% else %}
+                                {{ challenge.title }}
+                            {% endif %}
+                        </h3>
+                        <div class="challenge-category">{{ challenge.category }}</div>
+                    </div>
+                    <div class="challenge-info">
+                        <span class="challenge-points">{{ challenge.points }} pts</span>
+                        <span class="difficulty {{ challenge.difficulty|lower }}">
+                            {{ challenge.difficulty }}
+                        </span>
+                    </div>
+                    <div class="challenge-meta">
+                        <span class="solve-count">
+                            <i class="fas fa-check"></i> {{ challenge.solve_count }} solves
+                        </span>
+                    </div>
+                    <a href="{{ url_for('challenge_details', short_id=challenge.short_id) }}" 
+                       class="solve-btn">Solve Challenge</a>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+{% include 'client/components/notification_audio.html' %}
+{% include 'client/components/footer.html' %}
+
+<script>
+    // Use the shared socket connection for any page-specific socket events
+    const socket = window.notificationSocket;
+    
+    // Category filter functionality
+    const categoryFilters = document.querySelectorAll('.category-filter');
+    const challengeCards = document.querySelectorAll('.challenge-card');
+
+    categoryFilters.forEach(filter => {
+        filter.addEventListener('click', () => {
+            // Update active state of filters
+            categoryFilters.forEach(f => f.classList.remove('active'));
+            filter.classList.add('active');
+
+            const category = filter.dataset.category;
+            
+            // Show/hide cards based on category
+            challengeCards.forEach(card => {
+                if (category === 'all' || card.dataset.category === category) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // Sort functionality
+    const sortSelect = document.querySelector('.sort-select');
+    const challengesGrid = document.querySelector('.challenges-grid');
+
+    sortSelect.addEventListener('change', (e) => {
+        const sortBy = e.target.value;
+        const cardsArray = Array.from(challengeCards);
+
+        cardsArray.sort((a, b) => {
+            if (sortBy === 'points') {
+                const pointsA = parseInt(a.querySelector('.challenge-points').textContent);
+                const pointsB = parseInt(b.querySelector('.challenge-points').textContent);
+                return pointsB - pointsA;
+            } else if (sortBy === 'difficulty') {
+                const difficultyMap = { 'easy': 1, 'medium': 2, 'hard': 3 };
+                const diffA = a.querySelector('.difficulty').classList[1];
+                const diffB = b.querySelector('.difficulty').classList[1];
+                return difficultyMap[diffA] - difficultyMap[diffB];
+            } else {
+                const categoryA = a.querySelector('.challenge-category').textContent;
+                const categoryB = b.querySelector('.challenge-category').textContent;
+                return categoryA.localeCompare(categoryB);
+            }
+        });
+
+        cardsArray.forEach(card => challengesGrid.appendChild(card));
+    });
+</script>
+</body>
+</html>
