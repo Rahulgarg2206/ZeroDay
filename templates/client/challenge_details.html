@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ challenge.title }} - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/common.css" rel="stylesheet">
+    <link href="/static/css/sidebar.css" rel="stylesheet">
+    <style>
+        /* Include the base styles from other pages */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        /* Sidebar styles (same as other pages) */
+        .sidebar {
+            width: 240px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(0, 255, 136, 0.1);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+                padding: 1rem 0.5rem;
+            }
+        }
+        
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main content styles */
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            color: #00ffff;
+            text-decoration: none;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            color: #00ff88;
+            transform: translateX(-5px);
+        }
+
+        .back-button i {
+            margin-right: 0.5rem;
+        }
+
+        .challenge-container {
+            background: linear-gradient(135deg, 
+                rgba(13, 13, 23, 0.98) 0%, 
+                rgba(26, 26, 46, 0.95) 50%,
+                rgba(13, 13, 23, 0.98) 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 15s ease infinite;
+            border-radius: 25px;
+            padding: 3rem;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.15);
+            backdrop-filter: blur(20px);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .challenge-header {
+            background: linear-gradient(45deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            border: 1px solid rgba(0, 255, 136, 0.15);
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .challenge-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, 
+                rgba(0, 255, 136, 0.1) 0%,
+                transparent 40%,
+                transparent 60%,
+                rgba(0, 255, 255, 0.1) 100%);
+            pointer-events: none;
+        }
+
+        .challenge-title {
+            font-size: 3rem;
+            background: linear-gradient(45deg, 
+                #00ff88 0%, 
+                #00ffff 50%, 
+                #00ff88 100%);
+            background-size: 200% auto;
+            animation: gradientMove 5s ease infinite;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            margin-bottom: 2rem;
+            letter-spacing: 2px;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .challenge-meta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(0, 255, 136, 0.03);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .meta-item {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            padding: 1.2rem 1.8rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            transition: all 0.4s ease;
+            animation: floatEffect 3s ease-in-out infinite;
+            animation-delay: calc(var(--animation-order) * 0.2s);
+        }
+
+        .meta-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 255, 136, 0.15);
+            background: rgba(0, 0, 0, 0.5);
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+
+        .meta-item i {
+            font-size: 1.2rem;
+            color: #00ff88;
+        }
+
+        .difficulty-badge {
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .easy { background: rgba(0, 255, 0, 0.2); color: #00ff00; }
+        .medium { background: rgba(255, 165, 0, 0.2); color: #ffa500; }
+        .hard { background: rgba(255, 0, 0, 0.2); color: #ff0000; }
+
+        .challenge-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .description-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2.5rem;
+            background: linear-gradient(160deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.2));
+            border-radius: 20px;
+            padding: 2.8rem;
+            border: 1px solid rgba(0, 255, 136, 0.15);
+        }
+
+        .description {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 2.5rem;
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            box-shadow: inset 0 0 30px rgba(0, 255, 136, 0.05);
+        }
+
+        .description strong {
+            font-size: 1.8rem;
+            color: #00ff88;
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+            display: block;
+            margin-bottom: 2rem;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .description p {
+            margin-bottom: 1rem;
+        }
+
+        .description ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .description li {
+            margin-bottom: 0.5rem;
+        }
+
+        .description-content {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            color: #e6e6e6;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            margin: 0;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 255, 136, 0.2) rgba(0, 0, 0, 0.2);
+        }
+
+        /* Custom scrollbar for Webkit browsers */
+        .description-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .description-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .description-content::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 4px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+        }
+
+        .description-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 136, 0.3);
+        }
+
+        .description-content br:first-child,
+        .description-content br:last-child {
+            display: none;
+        }
+
+        .description-content p:first-child {
+            margin-top: 0;
+        }
+
+        .description-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .files-hints-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2.5rem;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 255, 136, 0.15);
+        }
+
+        .files-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 2rem;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.08);
+        }
+
+        .files-section h3 {
+            font-size: 1.6rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .file-item {
+            background: linear-gradient(45deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3));
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .file-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.1);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .file-name {
+            flex: 1;
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, rgba(0, 255, 136, 0.15), rgba(0, 255, 255, 0.15));
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .download-btn:hover {
+            background: linear-gradient(45deg, rgba(0, 255, 136, 0.25), rgba(0, 255, 255, 0.25));
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .download-btn.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .download-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin: -8px 0 0 -8px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-top-color: #00ff88;
+            border-radius: 50%;
+            animation: button-loading-spinner 1s linear infinite;
+        }
+
+        @keyframes button-loading-spinner {
+            from { transform: rotate(0turn); }
+            to { transform: rotate(1turn); }
+        }
+
+        .submission-section {
+            background: linear-gradient(160deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.2));
+            border-radius: 20px;
+            padding: 3rem;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 800px;
+            margin: 2.5rem auto 0;
+        }
+
+        .submission-section h3 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .flag-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(0, 255, 136, 0.2);
+            border-radius: 15px;
+            padding: 1.5rem;
+            color: #00ff88;
+            font-size: 1.4rem;
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 2px;
+            margin-bottom: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            animation: glowPulse 2s infinite;
+        }
+
+        .flag-input::placeholder {
+            color: rgba(0, 255, 136, 0.3);
+            font-style: italic;
+        }
+
+        .flag-input:focus {
+            border-color: #00ff88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+            outline: none;
+        }
+
+        .flag-format {
+            color: rgba(0, 255, 136, 0.6);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .flag-form {
+            position: relative;
+            margin-top: 1rem;
+        }
+
+        @keyframes validateFlag {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+            100% { transform: translateX(0); }
+        }
+
+        .flag-input.invalid {
+            border-color: #ff004c;
+            box-shadow: 0 0 20px rgba(255, 0, 76, 0.15);
+            animation: validateFlag 0.5s ease-in-out;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .submit-btn {
+            width: 100%;
+            max-width: 400px;
+            background: linear-gradient(45deg, 
+                #00ff88 0%, 
+                #00ffff 50%, 
+                #00ff88 100%);
+            background-size: 200% auto;
+            border: none;
+            border-radius: 15px;
+            padding: 1.5rem;
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin: 0 auto;
+            font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn:hover {
+            background-position: right center;
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 255, 136, 0.3);
+        }
+
+        /* Add shine effect to submit button */
+        .submit-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                transparent,
+                rgba(255, 255, 255, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        .hints-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 2rem;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.08);
+        }
+
+        .hints-section h3 {
+            font-size: 1.6rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .hint-item {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .hint-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 255, 136, 0.1);
+            background: rgba(0, 255, 136, 0.08);
+        }
+
+        .hint-number {
+            font-size: 1.1rem;
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .hint-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+
+        .hint-cost {
+            color: #ff004c;
+            font-size: 0.9rem;
+        }
+
+        .unlock-hint-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .unlock-hint-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .hint-text {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            color: #fff;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1.2rem 2rem;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(15px);
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            display: none;
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 1.5rem 2.5rem;
+            font-size: 1.1rem;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .toast.success {
+            border-left: 4px solid #00ff88;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.2);
+        }
+
+        .toast.error {
+            border-left: 4px solid #ff004c;
+            box-shadow: 0 8px 32px rgba(255, 0, 76, 0.2);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1200px) {
+            .challenge-content {
+                grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .challenge-content {
+                grid-template-columns: 1fr;
+            }
+
+            .files-hints-container {
+                grid-template-columns: 1fr;
+            }
+
+            .challenge-container {
+                margin: 1rem;
+            }
+
+            .challenge-title {
+                font-size: 2.2rem;
+            }
+
+            .submission-section {
+                padding: 2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+                padding: 1.5rem;
+            }
+
+            .challenge-container {
+                padding: 1.5rem;
+                margin: 1rem;
+                border-radius: 12px;
+            }
+
+            .challenge-meta {
+                gap: 1rem;
+            }
+
+            .meta-item {
+                width: calc(50% - 1rem);
+            }
+
+            .description strong {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            .challenge-container {
+                padding: 1rem;
+                margin: 0.5rem;
+            }
+
+            .meta-item {
+                flex-direction: column;
+                gap: 0.3rem;
+            }
+
+            .flag-input {
+                font-size: 1rem;
+            }
+
+            .submit-btn {
+                padding: 0.8rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        .notifications-dropdown {
+            position: relative;
+            margin-top: auto;
+            padding: 1rem;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #ff0066;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .notification-badge {
+                right: 0.2rem;
+                top: 0.2rem;
+            }
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .solved-status {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            color: #00ff88 !important;
+        }
+
+        .solved-status i {
+            color: #00ff88;
+            margin-right: 0.5rem;
+        }
+
+        .solved-badge {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            padding: 1rem;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .solved-badge i {
+            font-size: 1.2rem;
+        }
+
+        /* Confirmation Modal Styles */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-modal.show {
+            display: flex;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .confirm-content {
+            background: rgba(26, 26, 46, 0.95);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 10px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .confirm-content h3 {
+            color: #00ff88;
+            margin-bottom: 1rem;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .confirm-content p {
+            color: #fff;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .confirm-btn, .cancel-btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Share Tech Mono', monospace;
+            border: none;
+        }
+
+        .confirm-btn {
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            color: #0a0a0a;
+            font-weight: bold;
+        }
+
+        .cancel-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .confirm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .view-hint-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .view-hint-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .hint-content {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 4px;
+            color: #fff;
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Add these new styles */
+        .hint-unlock-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .unlock-animation {
+            font-size: 4rem;
+            color: #00ff88;
+            animation: unlockAnimation 1s ease-out forwards;
+        }
+
+        @keyframes unlockAnimation {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.8; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .hint-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hint-modal-content {
+            background: rgba(26, 26, 46, 0.95);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 10px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .hint-modal-content h3 {
+            color: #00ff88;
+            margin-bottom: 1rem;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .hint-modal-content p {
+            color: #fff;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .close-hint-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-hint-modal:hover {
+            color: #00ff88;
+        }
+
+        /* Add new animations */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.2); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.3); }
+            100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.2); }
+        }
+
+        /* Apply animations */
+        .challenge-container {
+            animation: glow 4s infinite;
+        }
+
+        .meta-item {
+            animation: pulse 3s infinite;
+        }
+
+        /* Add new animations and effects */
+        @keyframes floatEffect {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.2); }
+            100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.1); }
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .description-content b {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .description-content i {
+            color: #00ffff;
+            font-style: italic;
+        }
+
+        .description-content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            color: #ff004c;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .description-content s {
+            color: #666;
+        }
+
+        /* New Notification Link Styling */
+        .notification-link {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1100;
+            color: #00ffff;
+            text-decoration: none;
+            font-size: 1.8rem;
+            transition: color 0.3s ease;
+        }
+        .notification-link:hover {
+            color: #00ff88;
+        }
+    </style>
+    <audio id="unlockSound" preload="auto">
+        <source src="/static/audio/unlock.mp3" type="audio/mpeg">
+    </audio>
+</head>
+<body>
+    {% with active_page='challenges' %}
+        {% include 'client/components/sidebar.html' %}
+    {% endwith %}
+
+    <div class="main-content">
+        <a href="/challenges" class="back-button">
+            <i class="fas fa-arrow-left"></i> Back to Challenges
+        </a>
+
+        <div class="challenge-container">
+            <div class="challenge-header">
+                <h1 class="challenge-title">{{ challenge.title }}</h1>
+                <div class="challenge-meta">
+                    {% if challenge.is_solved %}
+                    <div class="meta-item solved-status">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Solved</span>
+                    </div>
+                    {% endif %}
+                    <div class="meta-item">
+                        <i class="fas fa-trophy"></i>
+                        <span>{{ challenge.points }} points</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-folder"></i>
+                        <span>{{ challenge.category }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-check"></i>
+                        <span>{{ challenge.solve_count }} solves</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="difficulty-badge {{ challenge.difficulty|lower }}">
+                            {{ challenge.difficulty }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="challenge-content">
+                <div class="description-section">
+                    <div class="description">
+                        <strong>Description:</strong>
+                        <div class="description-content">{{ challenge.description | safe | trim | replace('\n', '') | replace('    ', '') }}</div>
+                    </div>
+
+                    {% if challenge.files or challenge.hints %}
+                    <div class="files-hints-container">
+                        {% if challenge.files %}
+                        <div class="files-section">
+                            <h3>Challenge Files</h3>
+                            {% for file in challenge.files %}
+                            <div class="file-item">
+                                <span class="file-name">{{ file[1] }}</span>
+                                <button class="download-btn" 
+                                        onclick="handleDownload(event, '{{ file[0] }}')"
+                                        data-file-id="{{ file[0] }}">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if challenge.hints %}
+                        <div class="hints-section">
+                            <h3>Available Hints</h3>
+                            {% for hint in challenge.hints %}
+                            <div class="hint-item" id="hint-{{ hint[0] }}">
+                                <div class="hint-header">
+                                    <span class="hint-number">Hint {{ loop.index }}</span>
+                                    {% if hint[1] > 0 and not hint[3] %}
+                                    <span class="hint-cost">Cost: {{ hint[1] }} points</span>
+                                    {% endif %}
+                                </div>
+                                {% if hint[3] or hint[1] == 0 %}  {# if hint is unlocked or free #}
+                                <button class="view-hint-btn" 
+                                        onclick="viewHint('{{ hint[0] }}')"
+                                        data-hint-id="{{ hint[0] }}">
+                                    <i class="fas fa-eye"></i> View Hint
+                                </button>
+                                {% else %}
+                                <button class="unlock-hint-btn" 
+                                        onclick="unlockHint('{{ hint[0] }}', '{{ hint[1] }}')"
+                                        data-hint-id="{{ hint[0] }}"
+                                        data-hint-cost="{{ hint[1] }}">
+                                    <i class="fas fa-lock"></i> Unlock Hint
+                                </button>
+                                {% endif %}
+                                <div class="hint-content" id="hint-content-{{ hint[0] }}" style="display: none;"></div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="submission-section">
+                    <h3>Submit Flag</h3>
+                    {% if challenge.is_solved %}
+                        <div class="solved-badge">
+                            <i class="fas fa-check-circle"></i>
+                            Challenge Solved!
+                        </div>
+                    {% else %}
+                        <form method="POST" onsubmit="return submitFlag(event)" class="flag-form">
+                            <input type="text" 
+                                   class="flag-input" 
+                                   name="flag" 
+                                   id="flagInput"
+                                   placeholder="Enter flag here">
+                            <button type="submit" class="submit-btn">Submit Flag</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Add this confirmation modal -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="confirm-content">
+            <h3>Unlock Hint</h3>
+            <p id="confirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="cancel-btn" onclick="closeConfirmModal()">Cancel</button>
+                <button class="confirm-btn" onclick="confirmUnlockHint()">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add this modal for displaying hints -->
+    <div class="hint-modal" id="hintModal">
+        <div class="hint-modal-content">
+            <button class="close-hint-modal" onclick="closeHintModal()">×</button>
+            <h3>Hint</h3>
+            <p id="hintModalContent"></p>
+        </div>
+    </div>
+
+    {% include 'client/components/notification_audio.html' %}
+
+    <script>
+        let pendingHintData = null;
+
+        function showConfirmModal(hintId, cost) {
+            pendingHintData = { hintId, cost };
+            const modal = document.getElementById('confirmModal');
+            const message = document.getElementById('confirmMessage');
+            message.textContent = `This hint will cost you ${cost} points. Are you sure you want to unlock it?`;
+            modal.classList.add('show');
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('show');
+            pendingHintData = null;
+        }
+
+        async function confirmUnlockHint() {
+            if (!pendingHintData) return;
+            
+            const { hintId } = pendingHintData;
+            closeConfirmModal();
+            
+            const button = document.querySelector(`button[data-hint-id="${hintId}"]`);
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            }
+            
+            await processHintUnlock(hintId);
+        }
+
+        async function submitFlag(event) {
+            event.preventDefault();
+            const flagInput = document.getElementById('flagInput');
+            const flag = flagInput.value.trim();
+            const submitBtn = document.querySelector('.submit-btn');
+            
+            // Remove invalid class if it exists
+            flagInput.classList.remove('invalid');
+            
+            // Check if flag is empty
+            if (!flag) {
+                showToast('Please enter a flag', 'error');
+                flagInput.classList.add('invalid');
+                setTimeout(() => flagInput.classList.remove('invalid'), 2000);
+                return false;
+            }
+
+            try {
+                // Disable input and button during submission
+                flagInput.disabled = true;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({
+                        'flag': flag
+                    })
+                });
+
+                if (response.status === 429) {
+                    showToast('Too many attempts. Please wait before trying again.', 'error');
+                    return false;
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Play success sound if available
+                    const unlockSound = document.getElementById('unlockSound');
+                    if (unlockSound) {
+                        unlockSound.currentTime = 0;
+                        unlockSound.play().catch(e => console.log('Audio play failed:', e));
+                    }
+
+                    showToast('Congratulations! Flag is correct!', 'success');
+                    
+                    // Update UI to show solved status
+                    const submissionSection = document.querySelector('.submission-section');
+                    submissionSection.innerHTML = `
+                        <h3>Solved!</h3>
+                        <div class="solved-badge">
+                            <i class="fas fa-check-circle"></i>
+                            Challenge Solved!
+                        </div>
+                    `;
+                    
+                    // Add solved status to meta section if not already present
+                    const challengeMeta = document.querySelector('.challenge-meta');
+                    if (!document.querySelector('.solved-status')) {
+                        const solvedStatus = document.createElement('div');
+                        solvedStatus.className = 'meta-item solved-status';
+                        solvedStatus.innerHTML = `
+                            <i class="fas fa-check-circle"></i>
+                            <span>Solved</span>
+                        `;
+                        challengeMeta.insertBefore(solvedStatus, challengeMeta.firstChild);
+                    }
+                    
+                    // Update solve count in meta section
+                    const solveCountElement = document.querySelector('.meta-item .fa-check + span');
+                    if (solveCountElement) {
+                        const currentSolves = parseInt(solveCountElement.textContent);
+                        solveCountElement.textContent = `${currentSolves + 1} solves`;
+                    }
+                    
+                    // Reload page after a delay to update other components
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    // Re-enable input and button
+                    flagInput.disabled = false;
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Submit Flag';
+
+                    showToast(result.message || 'Incorrect flag', 'error');
+                    flagInput.classList.add('invalid');
+                    setTimeout(() => flagInput.classList.remove('invalid'), 2000);
+
+                    // If points were deducted, reload the page after showing the message
+                    if (result.message.includes('points deducted')) {
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                }
+            } catch (error) {
+                // Re-enable input and button
+                flagInput.disabled = false;
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Submit Flag';
+
+                showToast('Error submitting flag', 'error');
+                console.error('Error:', error);
+            }
+            return false;
+        }
+
+        async function unlockHint(hintId, cost) {
+            try {
+                const button = document.querySelector(`button[data-hint-id="${hintId}"]`);
+                if (!button) return;
+
+                // Disable button and show loading state
+                button.disabled = true;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+                // For paid hints, show confirmation
+                if (cost > 0) {
+                    showConfirmModal(hintId, cost);
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                    return;
+                }
+
+                const response = await fetch(`/api/hints/${hintId}/unlock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success animation
+                    const animation = document.createElement('div');
+                    animation.className = 'hint-unlock-animation';
+                    animation.innerHTML = '<i class="fas fa-unlock unlock-animation"></i>';
+                    document.body.appendChild(animation);
+
+                    setTimeout(() => {
+                        animation.remove();
+                        showToast(result.message, 'success');
+                        
+                        // Replace unlock button with view button
+                        const viewBtn = document.createElement('button');
+                        viewBtn.className = 'view-hint-btn';
+                        viewBtn.innerHTML = '<i class="fas fa-eye"></i> View Hint';
+                        viewBtn.onclick = () => viewHint(hintId);
+                        
+                        // Remove cost display if exists
+                        const hintItem = document.getElementById(`hint-${hintId}`);
+                        const costSpan = hintItem.querySelector('.hint-cost');
+                        if (costSpan) costSpan.remove();
+                        
+                        button.replaceWith(viewBtn);
+                        
+                        // Show hint automatically
+                        setTimeout(() => viewHint(hintId), 500);
+                    }, 1000);
+                } else {
+                    showToast(result.message || 'Failed to unlock hint', 'error');
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const button = document.querySelector(`button[data-hint-id="${hintId}"]`);
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-lock"></i> Unlock Hint';
+                }
+                showToast('Error unlocking hint', 'error');
+            }
+        }
+
+        async function processHintUnlock(hintId) {
+            const button = document.querySelector(`button[data-hint-id="${hintId}"]`);
+            const unlockSound = document.getElementById('unlockSound');
+            if (!button) return;
+
+            try {
+                const response = await fetch(`/api/hints/${hintId}/unlock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Play unlock sound
+                    unlockSound.currentTime = 0;
+                    unlockSound.play().catch(e => console.log('Audio play failed:', e));
+
+                    // Show unlock animation
+                    const animation = document.createElement('div');
+                    animation.className = 'hint-unlock-animation';
+                    animation.innerHTML = '<i class="fas fa-unlock unlock-animation"></i>';
+                    document.body.appendChild(animation);
+
+                    // Remove animation after it completes
+                    setTimeout(() => {
+                        animation.remove();
+                        
+                        // Replace the unlock button with the view button
+                        const hintItem = document.getElementById(`hint-${hintId}`);
+                        const costSpan = hintItem.querySelector('.hint-cost');
+                        
+                        // Remove cost display if it exists
+                        if (costSpan) {
+                            costSpan.remove();
+                        }
+
+                        // Create and insert view button
+                        const viewBtn = document.createElement('button');
+                        viewBtn.className = 'view-hint-btn';
+                        viewBtn.innerHTML = '<i class="fas fa-eye"></i> View Hint';
+                        viewBtn.onclick = () => viewHint(hintId);
+                        button.replaceWith(viewBtn);
+                        
+                        showToast(result.message, 'success');
+                        
+                        // Show the hint automatically after animation
+                        setTimeout(() => viewHint(hintId), 500);
+                    }, 1000);
+                } else {
+                    showToast(result.message || 'Failed to unlock hint', 'error');
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-lock"></i> Unlock Hint';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error unlocking hint', 'error');
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-lock"></i> Unlock Hint';
+            }
+        }
+
+        async function handleDownload(event, fileId) {
+            const button = event.currentTarget;
+            
+            // Prevent multiple clicks
+            if (button.classList.contains('loading')) {
+                return;
+            }
+            
+            // Add loading state
+            const originalText = button.innerHTML;
+            button.classList.add('loading');
+            
+            try {
+                await downloadFile(fileId);
+            } finally {
+                // Remove loading state
+                button.classList.remove('loading');
+                button.innerHTML = originalText;
+            }
+        }
+
+        async function downloadFile(fileId) {
+            try {
+                const response = await fetch(`/api/challenges/files/${fileId}/download`);
+                
+                if (!response.ok) {
+                    throw new Error('File download failed');
+                }
+
+                // Get filename from Content-Disposition header if available
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'download';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="(.+)"/);
+                    if (match) {
+                        filename = match[1];
+                    }
+                }
+
+                // Convert response to blob
+                const blob = await response.blob();
+                
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                
+                // Append to body, click and cleanup
+                document.body.appendChild(link);
+                link.click();
+                
+                // Cleanup
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(link);
+                
+                showToast('Download started', 'success');
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Error downloading file', 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        async function viewHint(hintId) {
+            try {
+                const response = await fetch(`/api/hints/${hintId}/view`);
+                if (!response.ok) throw new Error('Failed to fetch hint');
+                
+                const result = await response.json();
+                if (result.success) {
+                    const modal = document.getElementById('hintModal');
+                    const content = document.getElementById('hintModalContent');
+                    content.textContent = result.hint;
+                    modal.style.display = 'flex';
+                } else {
+                    showToast(result.message || 'Failed to view hint', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error viewing hint', 'error');
+            }
+        }
+
+        function closeHintModal() {
+            const modal = document.getElementById('hintModal');
+            modal.style.display = 'none';
+        }
+
+        // Close hint modal when clicking outside
+        document.getElementById('hintModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeHintModal();
+            }
+        });
+
+        // Close hint modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeHintModal();
+            }
+        });
+
+        // Add animation order to meta items
+        document.addEventListener('DOMContentLoaded', function() {
+            const metaItems = document.querySelectorAll('.meta-item');
+            metaItems.forEach((item, index) => {
+                item.style.setProperty('--animation-order', index);
+            });
+        });
+
+        // Update the error handling in the page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch(window.location.href);
+                if (response.status === 403) {
+                    const result = await response.json();
+                    showToast(result.message, 'error');
+                    setTimeout(() => {
+                        window.location.href = '/challenges';
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
+        // Use the shared socket created by notification_audio.html.
+        const socket = window.notificationSocket;
+
+        // For instance, if you need to update parts of the challenge details page:
+        function updateLeaderboard(teams) {
+            // Your code for updating leaderboard on challenge details (if needed)
+        }
+
+        socket.on('leaderboard_update', teams => { updateLeaderboard(teams); });
+
+        // Other inline code for handling challenge details can go below without reinitializing socket.io.
+    </script>
+    {% include 'client/components/footer.html' %}
+</body>
+</html>
