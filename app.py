@@ -1086,6 +1086,133 @@ def challenge_details(short_id):
     finally:
         conn.close()
 
+@app.route('/leaderboard')
+@login_required
+def leaderboard():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get user's team ID
+        c.execute('SELECT team_id FROM users WHERE id = ?', (session['user_id'],))
+        team_id = c.fetchone()[0]
+        
+        return render_template('client/leaderboard.html', 
+                             team_id=team_id,
+                             active_page='leaderboard')
+    except Exception as e:
+        print(f"Error loading leaderboard: {str(e)}")
+        return render_template('client/leaderboard.html')
+    finally:
+        conn.close()
+
+@app.route('/profile')
+@login_required
+def profile():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get user details
+        c.execute('''
+            SELECT u.username, u.email, t.name as team_name,
+                   COUNT(DISTINCT sc.challenge_id) as solved_challenges,
+                   COALESCE(t.points, 0) as total_points,
+                   (
+                       SELECT COUNT(DISTINCT challenge_id) 
+                       FROM solved_challenges 
+                       WHERE user_id = u.id 
+                       AND solved_at >= datetime('now', '-24 hours')
+                   ) as challenges_24h,
+                   COALESCE(t.is_banned, 0) as is_banned
+            FROM users u
+            LEFT JOIN teams t ON u.team_id = t.id
+            LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+            WHERE u.id = ?
+            GROUP BY u.id
+        ''', (session['user_id'],))
+        
+        user_data = c.fetchone()
+        
+        if not user_data:
+            return redirect(url_for('login'))
+            
+        # Get recent activity
+        c.execute('''
+            SELECT 
+                c.title,
+                c.points,
+                sc.solved_at,
+                c.category,
+                c.difficulty
+            FROM solved_challenges sc
+            JOIN challenges c ON sc.challenge_id = c.id
+            WHERE sc.user_id = ?
+            ORDER BY sc.solved_at DESC
+            LIMIT 10
+        ''', (session['user_id'],))
+        
+        recent_activity = c.fetchall()
+        
+        # Get category stats
+        c.execute('''
+            SELECT 
+                c.category,
+                COUNT(DISTINCT sc.challenge_id) as solved_count,
+                (
+                    SELECT COUNT(*)
+                    FROM challenges
+                    WHERE category = c.category
+                ) as total_count
+            FROM challenges c
+            LEFT JOIN solved_challenges sc ON c.id = sc.challenge_id 
+                AND sc.user_id = ?
+            GROUP BY c.category
+        ''', (session['user_id'],))
+        
+        category_stats = c.fetchall()
+        
+        # Get user rank based on team points
+        user_rank = 0
+        if not user_data[6]:  # if not banned
+            c.execute('''WITH team_ranks AS (
+                           SELECT id, 
+                                  RANK() OVER (ORDER BY points DESC) as rank
+                           FROM teams
+                           WHERE is_banned = 0
+                        )
+                        SELECT rank 
+                        FROM team_ranks 
+                        WHERE id = (SELECT team_id FROM users WHERE id = ?)''', 
+                     (session['user_id'],))
+            rank_result = c.fetchone()
+            user_rank = rank_result[0] if rank_result else 0
+        
+        profile_data = {
+            'username': user_data[0],
+            'email': user_data[1],
+            'team_name': user_data[2],
+            'solved_challenges': user_data[3],
+            'total_points': user_data[4],
+            'challenges_24h': user_data[5],
+            'rank': user_rank,
+            'is_banned': bool(user_data[6]),
+            'recent_activity': recent_activity,
+            'category_stats': category_stats
+        }
+        
+        return render_template('client/profile.html', 
+                             profile=profile_data,
+                             active_page='profile')
+        
+    except Exception as e:
+        print(f"Error fetching profile data: {str(e)}")
+        return redirect(url_for('dashboard'))
+    finally:
+        conn.close()
+
+# Add admin_required decorator before it's used
+
 if __name__ == '__main__':
     try:
 
