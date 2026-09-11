@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/common.css" rel="stylesheet">
+    <style>
+        /* Keep only page-specific styles */
+        .search-container {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            padding: 0 1rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            padding-left: 3rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(0, 255, 136, 0.5);
+        }
+
+        /* Table container */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 0 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 136, 0.1);
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .leaderboard-table th {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 1rem;
+            text-align: left;
+            font-family: 'Orbitron', sans-serif;
+            color: #00ff88;
+            white-space: nowrap;
+        }
+
+        .leaderboard-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+            white-space: nowrap;
+        }
+
+        .rank {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            min-width: 100px;
+        }
+
+        .team-name {
+            color: #00ffff;
+            min-width: 200px;
+        }
+
+        .score {
+            color: #00ff88;
+            font-family: 'Orbitron', sans-serif;
+            min-width: 100px;
+       
+        }
+
+        .medal {
+            margin-left: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .gold { color: #ffd700; }
+        .silver { color: #c0c0c0; }
+        .bronze { color: #cd7f32; }
+
+        .top-team {
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        /* Pagination styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 2rem 0;
+            padding: 0 1rem;
+        }
+
+        .page-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 5px;
+            color: #b3b3cc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .page-btn:hover {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+
+        .page-btn.active {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border-color: #00ff88;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+                padding: 1rem;
+            }
+
+            .page-header {
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+
+            .leaderboard-table th, 
+            .leaderboard-table td {
+                padding: 0.8rem 0.5rem;
+                font-size: 0.9rem;
+            }
+
+            .table-wrapper {
+                margin: 0;
+                border-radius: 8px;
+            }
+
+            .pagination {
+                flex-wrap: wrap;
+                margin-bottom: 5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .search-container {
+                padding: 0 0.5rem;
+            }
+
+            .leaderboard-table th, 
+            .leaderboard-table td {
+                font-size: 0.8rem;
+                padding: 0.6rem 0.4rem;
+            }
+
+            .medal {
+                font-size: 1rem;
+            }
+        }
+
+        .notifications-dropdown {
+            position: relative;
+            margin-top: auto;
+            padding: 1rem;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #ff0066;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .notification-badge {
+                right: 0.2rem;
+                top: 0.2rem;
+            }
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(0, 255, 136, 0.1);
+            padding: 1rem;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-text {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Adjust main content to prevent footer overlap */
+        .main-content {
+            padding-bottom: 5rem;
+        }
+
+        @media (max-width: 768px) {
+            .footer {
+                padding: 0.8rem;
+            }
+
+            .footer-text {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Add these new styles */
+        .member-count, .solved-count {
+            font-family: 'Share Tech Mono', monospace;
+            color: #b3b3cc;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            margin: 0.1rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 3px;
+            font-size: 0.8rem;
+            color: #00ff88;
+        }
+
+        .leaderboard-table th, 
+        .leaderboard-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+        }
+
+        .top-team {
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .categories {
+            max-width: 300px;
+            white-space: normal;
+        }
+
+        /* Update responsive styles */
+        @media (max-width: 768px) {
+            .leaderboard-table th:nth-child(3),
+            .leaderboard-table td:nth-child(3),
+            .leaderboard-table th:nth-child(6),
+            .leaderboard-table td:nth-child(6) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .leaderboard-table th:nth-child(4),
+            .leaderboard-table td:nth-child(4) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">ZDA</div>
+        <a href="/dashboard" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/challenges" class="nav-item">
+            <i class="fas fa-flag"></i>
+            <span>Challenges</span>
+        </a>
+        <a href="/team" class="nav-item">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+        <a href="/leaderboard" class="nav-item active">
+            <i class="fas fa-trophy"></i>
+            <span>Leaderboard</span>
+        </a>
+        <a href="/profile" class="nav-item">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+        <div class="notifications-dropdown">
+            <a href="/notifications" class="nav-item {% if active_page == 'notifications' %}active{% endif %}">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" class="search-input" placeholder="Search teams...">
+        </div>
+
+        <div class="table-wrapper">
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Team</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <!-- Teams will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-text">Powered By Zero Day Arena</div>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        // Convert team_id to valid JS (will output a number or null)
+        const currentTeamId = {{ team_id|tojson }};
+        
+        // Ensure socket connection is established (fallback to io() if needed)
+        const socket = window.notificationSocket || io();
+
+        function updateLeaderboard(teams) {
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = teams.map((team, index) => {
+                const rank = index + 1;
+                const medalClass = rank <= 3 ? 
+                    ['gold', 'silver', 'bronze'][rank - 1] : '';
+                const medalIcon = rank <= 3 ? 
+                    `<i class="fas fa-medal medal ${medalClass}"></i>` : '';
+                    
+                const isCurrentTeam = team.id === currentTeamId ? 'top-team' : '';
+
+                return `
+                    <tr class="${isCurrentTeam}">
+                        <td class="rank">#${rank}${medalIcon}</td>
+                        <td class="team-name">${team.name}</td>
+                        <td class="score">${team.total_points.toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Listen for leaderboard updates
+        socket.on('leaderboard_update', (teams) => {
+            updateLeaderboard(teams);
+        });
+
+        // Handle connection issues
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+
+        // Search functionality
+        const searchInput = document.querySelector('.search-input');
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#leaderboard-body tr');
+            
+            rows.forEach(row => {
+                const teamName = row.querySelector('.team-name').textContent.toLowerCase();
+                row.style.display = teamName.includes(searchTerm) ? '' : 'none';
+            });
+        });
+
+        // Cleanup on unload
+        window.addEventListener('beforeunload', () => {
+            socket.disconnect();
+        });
+    </script>
+    
+    {% include 'client/components/notification_audio.html' %}
+    
+    {% include 'client/components/footer.html' %}
+</body>
+</html>
