@@ -1212,6 +1212,316 @@ def profile():
         conn.close()
 
 # Add admin_required decorator before it's used
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Explicitly check for is_admin flag
+        if not session.get('user_id') or not session.get('is_admin', False):
+            # Check if this is an API route
+            if request.path.startswith('/api/'):
+                return jsonify({
+                    'success': False,
+                    'message': 'Admin access required'
+                }), 403
+            # For /admin routes (including root /admin), return 403 instead of redirecting
+            if request.path.startswith('/admin'):
+                return render_template('admin/403.html'), 403
+            # For other routes, redirect to login
+            flash('Admin access required')
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Now the routes that use @admin_required can be defined
+# @app.route('/api/admin/settings/reset-ctf', methods=['POST'])
+# @admin_required
+# def reset_ctf_endpoint():  # Changed name to be unique
+#     try:
+#         reset_ctf_timing()
+#         return jsonify({
+#             'success': True,
+#             'message': 'CTF timing has been reset'
+#         })
+#     except Exception as e:
+#         return jsonify({
+#             'success': False,
+#             'message': str(e)
+#         }), 500
+
+@app.route('/admin')
+@admin_required
+def admin_root():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get total users count
+        c.execute('SELECT COUNT(*) FROM users')
+        total_users = c.fetchone()[0]
+        
+        # Get total teams count
+        c.execute('SELECT COUNT(*) FROM teams')
+        total_teams = c.fetchone()[0]
+        
+        # Get total challenges count
+        c.execute('SELECT COUNT(*) FROM challenges')
+        total_challenges = c.fetchone()[0]
+        
+        # Get total solved challenges
+        c.execute('SELECT COUNT(*) FROM solved_challenges')
+        total_solves = c.fetchone()[0]
+        
+        # Get recent activity
+        c.execute('''
+            SELECT u.username, c.title, sc.solved_at
+            FROM solved_challenges sc
+            JOIN users u ON sc.user_id = u.id
+            JOIN challenges c ON sc.challenge_id = c.id
+            ORDER BY sc.solved_at DESC
+            LIMIT 10
+        ''')
+        recent_activity = [{
+            'username': row[0],
+            'challenge': row[1],
+            'time': row[2]
+        } for row in c.fetchall()]
+        
+        # Get top teams
+        c.execute('''
+            SELECT t.name, COUNT(DISTINCT sc.challenge_id) as solved_count, 
+                   COALESCE(SUM(sc.points_awarded), 0) as total_points
+            FROM teams t
+            LEFT JOIN users u ON t.id = u.team_id
+            LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+            WHERE t.is_banned = 0
+            GROUP BY t.id
+            ORDER BY total_points DESC
+            LIMIT 5
+        ''')
+        top_teams = [{
+            'name': row[0],
+            'solved': row[1],
+            'points': row[2]
+        } for row in c.fetchall()]
+        
+        return render_template('admin/dashboard.html',
+                             total_users=total_users,
+                             total_teams=total_teams,
+                             total_challenges=total_challenges,
+                             total_solves=total_solves,
+                             recent_activity=recent_activity,
+                             top_teams=top_teams)
+                             
+    except Exception as e:
+        logging.error(f"Admin dashboard error: {str(e)}")
+        flash('Error loading dashboard data')
+        return render_template('admin/dashboard.html', error=True)
+        
+    finally:
+        conn.close()
+
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        c.execute('''
+            SELECT 
+                u.id,
+                u.username,
+                u.email,
+                t.name as team_name,
+                CASE WHEN u.is_leader THEN 'Admin' ELSE 'Player' END as role,
+                COUNT(DISTINCT sc.challenge_id) as solved_challenges,
+                COALESCE(SUM(sc.points_awarded), 0) as total_points
+            FROM users u
+            LEFT JOIN teams t ON u.team_id = t.id
+            LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+            GROUP BY u.id
+            ORDER BY total_points DESC
+        ''')
+        
+        users = [{
+            'id': row[0],
+            'username': row[1],
+            'email': row[2],
+            'team_name': row[3] or 'No Team',
+            'role': row[4],
+            'solved_challenges': row[5],
+            'total_points': row[6]
+        } for row in c.fetchall()]
+        
+        return render_template('admin/users.html', users=users)
+        
+    finally:
+        conn.close()
+
+@app.route('/admin/teams')
+@admin_required
+def admin_teams():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Update query to include ban status
+        c.execute('''
+            SELECT t.id, t.name, t.team_code, 
+                   COUNT(DISTINCT u.id) as member_count,
+                   COALESCE(SUM(sc.points_awarded), 0) as total_score,
+                   (SELECT username FROM users 
+                    WHERE team_id = t.id AND is_leader = 1) as leader_name,
+                   COALESCE(t.is_banned, 0) as is_banned
+            FROM teams t
+            LEFT JOIN users u ON t.id = u.team_id
+            LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+            GROUP BY t.id
+            ORDER BY total_score DESC
+        ''')
+        
+        teams = [
+            {
+                'id': row[0],
+                'name': row[1],
+                'team_code': row[2],
+                'member_count': row[3],
+                'total_score': row[4],
+                'leader_name': row[5] or 'No Leader',
+                'is_banned': bool(row[6])
+            }
+            for row in c.fetchall()
+        ]
+        
+        return render_template('admin/teams.html', teams=teams)
+    finally:
+        conn.close()
+
+@app.route('/admin/challenges', methods=['GET'])
+@admin_required
+def admin_challenges():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get all challenges with their hints and files
+        c.execute('''
+            SELECT 
+                c.id, c.title, c.description, c.points, c.category,
+                c.flag, c.difficulty, COALESCE(c.is_hidden, 0) as is_hidden, 
+                c.files_directory,
+                COUNT(DISTINCT h.id) as hint_count,
+                COUNT(DISTINCT cf.id) as file_count,
+                COUNT(DISTINCT sc.id) as solve_count
+            FROM challenges c
+            LEFT JOIN hints h ON c.id = h.challenge_id
+            LEFT JOIN challenge_files cf ON c.id = cf.challenge_id
+            LEFT JOIN solved_challenges sc ON c.id = sc.challenge_id
+            GROUP BY c.id
+            ORDER BY c.id DESC
+        ''')
+        challenges = c.fetchall()
+        
+        # Get all hints for each challenge
+        challenge_data = []
+        for challenge in challenges:
+            c.execute('SELECT id, hint_text, cost FROM hints WHERE challenge_id = ?', 
+                     (challenge[0],))
+            hints = c.fetchall()
+            
+            c.execute('''SELECT id, filename, filepath 
+                        FROM challenge_files 
+                        WHERE challenge_id = ?''', 
+                     (challenge[0],))
+            files = c.fetchall()
+            
+            challenge_dict = {
+                'id': challenge[0],
+                'title': challenge[1],
+                'description': challenge[2],
+                'points': challenge[3],
+                'category': challenge[4],
+                'flag': challenge[5],
+                'difficulty': challenge[6],
+                'is_hidden': challenge[7],
+                'files_directory': challenge[8],
+                'hint_count': challenge[9],
+                'file_count': challenge[10],
+                'solve_count': challenge[11],
+                'hints': hints,
+                'files': files
+            }
+            challenge_data.append(challenge_dict)
+        
+        return render_template('admin/challenges.html', challenges=challenge_data)
+    
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return render_template('admin/challenges.html', challenges=[])
+    finally:
+        conn.close()
+
+@app.route('/admin/notifications')
+@admin_required
+def admin_notifications():
+    return render_template('admin/notifications.html')
+
+@app.route('/admin/settings')
+@admin_required
+def admin_settings():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get basic settings
+        c.execute('SELECT key, value FROM settings')
+        settings = dict(c.fetchall())
+        
+        # Get CTF timing
+        c.execute('''SELECT start_time, end_time 
+                    FROM setting_date_time 
+                    ORDER BY id DESC LIMIT 1''')
+        timing = c.fetchone()
+        
+        if timing:
+            settings['ctf_start_time'] = timing[0]
+            settings['ctf_end_time'] = timing[1]
+        else:
+            # Set default timing if none exists
+            default_start = datetime.now().replace(hour=10, minute=0) + timedelta(days=1)
+            default_end = default_start.replace(hour=22, minute=0)
+            settings['ctf_start_time'] = default_start.strftime('%Y-%m-%dT%H:%M')
+            settings['ctf_end_time'] = default_end.strftime('%Y-%m-%dT%H:%M')
+        
+        # Add default values if settings don't exist
+        default_settings = {
+            'allow_registration': 'false',
+            'allow_team_creation': 'false',
+            'min_team_size': '1',
+            'max_team_size': '4'
+        }
+        
+        # Update settings with defaults for missing values
+        for key, default_value in default_settings.items():
+            if key not in settings:
+                c.execute('INSERT INTO settings (key, value) VALUES (?, ?)',
+                         (key, default_value))
+                settings[key] = default_value
+        
+        conn.commit()
+        return render_template('admin/settings.html', settings=settings)
+        
+    except Exception as e:
+        flash('Error loading settings: ' + str(e))
+        return render_template('admin/settings.html', error=True)
+        
+    finally:
+        conn.close()
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     try:
