@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/admin.js') }}" defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Admin sidebar styles */
+        .admin-sidebar {
+            width: 240px;
+            background: rgba(255, 0, 76, 0.05);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 0, 76, 0.2);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .admin-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+        }
+
+        .nav-item.active {
+            background: rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .nav-links {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logout {
+            margin-top: auto;
+        }
+
+        /* Main content styles */
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-success {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+        }
+
+        .toast-error {
+            background: rgba(255, 0, 76, 0.2);
+            border: 1px solid #ff004c;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 1200px) {
+            .main-content {
+                padding: 1.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            /* Adjust font sizes */
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .section-title {
+                font-size: 1.3rem;
+            }
+            
+            /* Adjust card layouts */
+            .card {
+                padding: 1.2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            /* Collapse sidebar */
+            .admin-sidebar {
+                width: 60px;
+                z-index: 100;
+            }
+            
+            .admin-logo {
+                display: none;
+            }
+            
+            .nav-item span {
+                display: none;
+            }
+            
+            .nav-item {
+                justify-content: center;
+                padding: 1rem;
+            }
+            
+            .nav-item i {
+                margin: 0;
+            }
+            
+            /* Adjust main content */
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+                padding: 1rem;
+            }
+            
+            /* Make tables scrollable */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Stack grid items */
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Adjust form layouts */
+            .form-group {
+                margin-bottom: 1rem;
+            }
+            
+            .modal-content {
+                width: 95%;
+                padding: 1.2rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            /* Further adjustments for mobile */
+            .main-content {
+                padding: 0.8rem;
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .section-title {
+                font-size: 1.1rem;
+            }
+            
+            /* Stack buttons and controls */
+            .controls {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            
+            .search-bar {
+                width: 100%;
+            }
+            
+            .filters {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            
+            .filter-select {
+                width: 100%;
+            }
+            
+            /* Adjust modal sizing */
+            .modal-content {
+                padding: 1rem;
+            }
+            
+            .modal-buttons {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .modal-btn {
+                width: 100%;
+            }
+            
+            /* Adjust card layouts */
+            .card {
+                padding: 1rem;
+            }
+            
+            /* Make tables more compact */
+            .table td,
+            .table th {
+                padding: 0.5rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Add touch support for mobile */
+        @media (hover: none) {
+            .nav-item:hover {
+                background: none;
+            }
+            
+            .nav-item:active {
+                background: rgba(255, 0, 76, 0.2);
+            }
+            
+            .button:hover {
+                transform: none;
+            }
+            
+            .button:active {
+                transform: scale(0.98);
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #0a0a0a;
+                color: #fff;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Small Screen Overlay -->
+    <div id="smallScreenOverlay" class="small-screen-overlay">
+        <div class="small-screen-content">
+            <div class="small-screen-icon">
+                <i class="fas fa-desktop"></i>
+            </div>
+            <h2 class="small-screen-title">Desktop View Required</h2>
+            <p class="small-screen-message">
+                The Zero Day Arena admin panel is optimized for larger screens. 
+                Please access this page using a desktop or tablet device with a 
+                screen width of at least 802 pixels for the best experience.
+            </p>
+            <div class="small-screen-icon">
+                <i class="fas fa-arrow-right-long"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Sidebar -->
+    <div class="admin-sidebar">
+        <div class="admin-logo">ZDA ADMIN</div>
+        <nav class="nav-links">
+            <a href="{{ url_for('admin_root') }}" class="nav-item {% if request.endpoint == 'admin_root' %}active{% endif %}">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{{ url_for('admin_users') }}" class="nav-item {% if request.endpoint == 'admin_users' %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="/admin/teams" class="nav-item">
+                <i class="fas fa-user-group"></i>
+                <span>Teams</span>
+            </a>
+            <a href="{{ url_for('admin_challenges') }}" class="nav-item {% if request.endpoint == 'admin_challenges' %}active{% endif %}">
+                <i class="fas fa-flag"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="{{ url_for('admin_notifications') }}" class="nav-item {% if request.endpoint == 'admin_notifications' %}active{% endif %}">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <a href="{{ url_for('admin_settings') }}" class="nav-item {% if request.endpoint == 'admin_settings' %}active{% endif %}">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+            <a href="{{ url_for('logout') }}" class="nav-item logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fas"></i>
+        <span class="toast-message"></span>
+    </div>
+
+    <!-- Common JavaScript -->
+    <script>
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = toast.querySelector('i');
+            const messageEl = toast.querySelector('.toast-message');
+
+            toast.classList.remove('toast-success', 'toast-error', 'show');
+            icon.classList.remove('fa-check-circle', 'fa-exclamation-circle');
+
+            toast.classList.add(`toast-${type}`);
+            icon.classList.add(type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle');
+            
+            messageEl.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 
