@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="error-page">
+    <div class="error-container">
+        <h1>403 - Access Denied</h1>
+        <p>You do not have permission to access this area.</p>
+        <p>This area is restricted to administrators only.</p>
+        <div class="error-actions">
+            <a href="{{ url_for('admin_login') }}" class="btn btn-primary">Admin Login</a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Return Home</a>
+        </div>
+    </div>
+</body>
+</html> 
