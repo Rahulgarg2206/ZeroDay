@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users Management - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        /* Admin sidebar styles */
+        .admin-sidebar {
+            width: 240px;
+            background: rgba(255, 0, 76, 0.05);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 0, 76, 0.2);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .admin-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+        }
+
+        .nav-item.active {
+            background: rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Position logout at bottom of sidebar */
+        .admin-sidebar {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-links {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logout {
+            margin-top: auto;
+        }
+
+        /* Main content styles */
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 0, 76, 0.5);
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .filter-select {
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .add-user-btn {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-user-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 0, 76, 0.3);
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: rgba(255, 0, 76, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 0, 76, 0.2);
+        }
+
+        .users-table th {
+            background: rgba(255, 0, 76, 0.1);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: normal;
+            color: #ff004c;
+        }
+
+        .users-table tr:hover {
+            background: rgba(255, 0, 76, 0.1);
+        }
+
+        .action-btn {
+            padding: 0.5rem;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            color: #ff8f00;
+        }
+
+        .delete-btn:hover {
+            color: #ff004c;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            padding: 2rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            color: #ff004c;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #b3b3cc;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .modal-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-btn {
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            color: #fff;
+        }
+
+        .cancel-btn {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+        }
+
+        /* Responsive styles */
+        @media (max-width: 1200px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-bar {
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                width: 60px;
+            }
+
+            .admin-logo {
+                font-size: 1.2rem;
+            }
+
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+                padding: 1rem;
+            }
+
+            .users-table {
+                display: block;
+                overflow-x: auto;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 1.5rem;
+            }
+
+            .nav-item span {
+                display: none;
+            }
+
+            .nav-item i {
+                margin-right: 0;
+            }
+
+            .nav-item {
+                justify-content: center;
+                padding: 1rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .search-bar,
+            .filters {
+                width: 100%;
+            }
+
+            .filter-select {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .table td,
+            .table th {
+                padding: 0.5rem;
+                font-size: 0.9rem;
+            }
+
+            .action-btn {
+                padding: 0.3rem;
+            }
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: rgba(26, 26, 46, 0.95);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 10px;
+            min-width: 300px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.confirm {
+            background: rgba(26, 26, 46, 0.95);
+        }
+
+        .toast .toast-content {
+            flex-grow: 1;
+            margin-right: 1rem;
+        }
+
+        .toast .toast-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .toast-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .toast-btn.confirm {
+            background: #ff004c;
+            color: white;
+        }
+
+        .toast-btn.cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #b3b3cc;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .user-action-menu {
+            position: absolute;
+            background: rgba(26, 26, 46, 0.95);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            padding: 1.5rem;
+            min-width: 250px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            transition: opacity 0.3s ease;
+        }
+
+        .menu-item {
+            margin-bottom: 1.5rem;
+        }
+
+        .menu-item label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .action-select {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.1);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 4px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .action-select:hover, .action-select:focus {
+            background: rgba(255, 0, 76, 0.2);
+            border-color: rgba(255, 0, 76, 0.4);
+            outline: none;
+        }
+
+        .action-select option {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 10px;
+        }
+
+        .menu-buttons {
+            display: flex;
+            gap: 0.8rem;
+            margin-top: 1.5rem;
+        }
+
+        .menu-btn {
+            flex: 1;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .menu-btn.save-btn {
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            color: #fff;
+        }
+
+        .menu-btn.save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 0, 76, 0.3);
+        }
+
+        .menu-btn.cancel-btn {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+        }
+
+        .menu-btn.cancel-btn:hover {
+            background: rgba(255, 0, 76, 0.2);
+        }
+
+        .user-actions-btn {
+            padding: 0.5rem;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-actions-btn:hover {
+            color: #ff004c;
+            transform: scale(1.1);
+        }
+
+        /* Add role indicator styles */
+        .role-cell {
+            position: relative;
+            padding-left: 20px !important;
+        }
+
+        .role-cell::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff004c;
+            opacity: 0.8;
+        }
+
+        .role-cell[data-role="admin"]::before {
+            background: #ff8f00;
+        }
+
+        .role-cell[data-role="player"]::before {
+            background: #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-sidebar">
+        <div class="admin-logo">ZDA ADMIN</div>
+        <div class="nav-links">
+            <a href="/admin" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/users" class="nav-item active">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="/admin/teams" class="nav-item">
+                <i class="fas fa-user-group"></i>
+                <span>Teams</span>
+            </a>
+            <a href="/admin/challenges" class="nav-item">
+                <i class="fas fa-flag"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="/admin/notifications" class="nav-item">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <a href="/admin/settings" class="nav-item">
+                <i class="fas fa-gear"></i>
+                <span>Settings</span>
+            </a>
+            <a href="/logout" class="nav-item logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="controls">
+            <div class="search-bar">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="Search users...">
+            </div>
+
+            <div class="filters">
+                <select class="filter-select" id="roleFilter">
+                    <option value="">All Roles</option>
+                    <option value="player">Player</option>
+                    <option value="admin">Admin</option>
+                </select>
+
+                <select class="filter-select" id="teamFilter">
+                    <option value="">All Teams</option>
+                    <option value="team1">Binary Bandits</option>
+                    <option value="team2">Cyber Phoenix</option>
+                    <option value="team3">Debug Devils</option>
+                </select>
+            </div>
+
+            <button class="add-user-btn" onclick="openModal()">
+                <i class="fas fa-plus"></i> Add User
+            </button>
+        </div>
+
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Team Name</th>
+                    <th>Role</th>
+                    <th>Solved</th>
+                    <th>Points</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr data-user-id="{{ user.id }}">
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.team_name }}</td>
+                    <td class="role-cell" data-role="{{ user.role.lower() }}">{{ user.role }}</td>
+                    <td>{{ user.solved_challenges }}</td>
+                    <td>{{ user.total_points }}</td>
+                    <td>
+                        <button class="action-btn view-log-btn" onclick="viewUserLog({{ user.id }})">
+                            <i class="fas fa-list"></i>
+                        </button>
+                        <button class="action-btn user-actions-btn" onclick="showActionMenu(event, {{ user.id }}, '{{ user.role }}', '{{ user.status }}')">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <button class="action-btn delete-btn" onclick="confirmDelete({{ user.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Add User Log Modal -->
+        <div class="modal" id="userLogModal">
+            <div class="modal-content">
+                <h2 class="modal-title">User Activity Log</h2>
+                <div class="user-log-content">
+                    <!-- Log entries will be loaded here -->
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn cancel-btn" onclick="closeLogModal()">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add this new dropdown menu HTML after the table row actions -->
+        <div class="user-action-menu" id="userActionMenu" style="display: none;">
+            <div class="menu-item">
+                <label>User Role</label>
+                <select class="action-select" id="userTypeSelect">
+                    <option value="player">Player</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <small style="color: #ff004c; display: block; margin-top: 5px;">
+                    Warning: Changing role affects user permissions
+                </small>
+            </div>
+            <div class="menu-item">
+                <label>Status</label>
+                <select class="action-select" id="userStatusSelect">
+                    <option value="active">Active</option>
+                    <option value="banned">Banned</option>
+                </select>
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn save-btn" onclick="saveUserChanges()">Save Changes</button>
+                <button class="menu-btn cancel-btn" onclick="hideActionMenu()">Cancel</button>
+            </div>
+        </div>
+
+        <script>
+            let currentUserId = null;
+            const actionMenu = document.getElementById('userActionMenu');
+
+            function showActionMenu(event, userId, userRole, userStatus) {
+                event.stopPropagation();
+                currentUserId = userId;
+                
+                // Position the menu near the clicked button
+                const rect = event.target.getBoundingClientRect();
+                actionMenu.style.top = `${rect.bottom + window.scrollY + 5}px`;
+                actionMenu.style.left = `${rect.left + window.scrollX - 160}px`; // Offset to align better
+                
+                // Set current values
+                document.getElementById('userTypeSelect').value = userRole.toLowerCase();
+                document.getElementById('userStatusSelect').value = userStatus.toLowerCase();
+                
+                // Show the menu with a fade-in effect
+                actionMenu.style.opacity = '0';
+                actionMenu.style.display = 'block';
+                setTimeout(() => {
+                    actionMenu.style.opacity = '1';
+                }, 10);
+                
+                // Add click event listener to close menu when clicking outside
+                document.addEventListener('click', closeMenuOnClickOutside);
+            }
+
+            function hideActionMenu() {
+                actionMenu.style.display = 'none';
+                currentUserId = null;
+                document.removeEventListener('click', closeMenuOnClickOutside);
+            }
+
+            function closeMenuOnClickOutside(event) {
+                if (!actionMenu.contains(event.target) && 
+                    !event.target.classList.contains('user-actions-btn')) {
+                    hideActionMenu();
+                }
+            }
+
+            async function saveUserChanges() {
+                if (!currentUserId) return;
+
+                const userType = document.getElementById('userTypeSelect').value;
+                const userStatus = document.getElementById('userStatusSelect').value;
+
+                try {
+                    const response = await fetch(`/api/admin/users/${currentUserId}/update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            role: userType,
+                            status: userStatus
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        showToast('User settings updated successfully', 'success');
+                        // Update the role in the table immediately
+                        const userRow = document.querySelector(`tr[data-user-id="${currentUserId}"]`);
+                        if (userRow) {
+                            const roleCell = userRow.querySelector('td:nth-child(5)');
+                            if (roleCell) {
+                                roleCell.textContent = userType.charAt(0).toUpperCase() + userType.slice(1);
+                            }
+                        }
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        showToast(data.message || 'Error updating user settings', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast('Network error while updating user settings', 'error');
+                }
+
+                hideActionMenu();
+            }
+
+            function viewUserLog(userId) {
+                const modal = document.getElementById('userLogModal');
+                modal.style.display = 'block';
+                // Here you would typically fetch and display the user's activity log
+                // You'll need to implement an API endpoint for this
+            }
+
+            function closeLogModal() {
+                document.getElementById('userLogModal').style.display = 'none';
+            }
+
+            // Close modal when clicking outside
+            window.onclick = (event) => {
+                const modal = document.getElementById('userLogModal');
+                if (event.target === modal) {
+                    closeLogModal();
+                }
+            }
+
+            function showToast(message, type = 'info', actions = null) {
+                const container = document.getElementById('toastContainer');
+                
+                // Remove any existing toast first
+                const existingToasts = container.querySelectorAll('.toast');
+                existingToasts.forEach(toast => toast.remove());
+                
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                
+                let toastContent = `
+                    <div class="toast-content">${message}</div>
+                `;
+                
+                if (actions) {
+                    toastContent += `
+                        <div class="toast-actions">
+                            ${actions.map(action => `
+                                <button class="toast-btn ${action.type}">
+                                    ${action.text}
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                toast.innerHTML = toastContent;
+                container.appendChild(toast);
+
+                // Set up auto-dismiss timer for confirmation toasts
+                let dismissTimer;
+                if (type === 'confirm') {
+                    let timeLeft = 4;
+                    const deleteBtn = toast.querySelector('.toast-btn.confirm');
+                    const originalText = deleteBtn.textContent;
+                    
+                    const updateButtonText = (seconds) => {
+                        if (seconds > 0) {
+                            deleteBtn.textContent = `${originalText} (${seconds})`;
+                        } else {
+                            deleteBtn.textContent = originalText;
+                        }
+                    };
+
+                    dismissTimer = setInterval(() => {
+                        updateButtonText(--timeLeft);
+                        if (timeLeft === 0) {
+                            clearInterval(dismissTimer);
+                            toast.style.animation = 'slideOut 0.3s ease-out forwards';
+                            setTimeout(() => toast.remove(), 300);
+                        }
+                    }, 1000);
+
+                    updateButtonText(timeLeft);
+                } else if (!actions) {
+                    setTimeout(() => {
+                        toast.style.animation = 'slideOut 0.3s ease-out forwards';
+                        setTimeout(() => toast.remove(), 300);
+                    }, 3000);
+                }
+
+                // Add event listeners to buttons if present
+                if (actions) {
+                    const buttons = toast.querySelectorAll('.toast-btn');
+                    buttons.forEach((btn, index) => {
+                        btn.addEventListener('click', () => {
+                            if (dismissTimer) clearInterval(dismissTimer);
+                            toast.style.animation = 'slideOut 0.3s ease-out forwards';
+                            setTimeout(() => {
+                                toast.remove();
+                                actions[index].onClick?.();
+                            }, 300);
+                        });
+                    });
+                }
+
+                return toast;
+            }
+
+            async function deleteUser(userId) {
+                try {
+                    const response = await fetch(`/api/admin/users/${userId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        // Remove the user row from the table
+                        const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                        if (userRow) {
+                            userRow.remove();
+                        }
+                        showToast('User deleted successfully', 'success');
+                        
+                        // Refresh the page after 1 second
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        showToast(data.message || 'Error deleting user', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast('Network error while deleting user', 'error');
+                }
+            }
+
+            function confirmDelete(userId) {
+                showToast(
+                    'Are you sure you want to delete this user?',
+                    'confirm',
+                    [
+                        {
+                            text: 'Cancel',
+                            type: 'cancel'
+                        },
+                        {
+                            text: 'Delete',
+                            type: 'confirm',
+                            onClick: () => deleteUser(userId)
+                        }
+                    ]
+                );
+            }
+        </script>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Add New User</h2>
+            <form id="userForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input type="text" id="username" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email</label>
+                    <input type="email" id="email" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="role">Role</label>
+                    <select id="role" class="form-input" required>
+                        <option value="player">Player</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn cancel-btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="modal-btn save-btn">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        function openModal(isEdit = false) {
+            const modal = document.getElementById('userModal');
+            const title = modal.querySelector('.modal-title');
+            title.textContent = isEdit ? 'Edit User' : 'Add New User';
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+
+        // Form submission
+        document.getElementById('userForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            // Add form submission logic here
+            closeModal();
+        });
+
+        // Close modal when clicking outside
+        window.onclick = (event) => {
+            const modal = document.getElementById('userModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
