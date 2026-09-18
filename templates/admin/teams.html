@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teams Management - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        /* Admin sidebar styles */
+        .admin-sidebar {
+            width: 240px;
+            background: rgba(255, 0, 76, 0.05);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 0, 76, 0.2);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .admin-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+        }
+
+        .nav-item.active {
+            background: rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .nav-links {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logout {
+            margin-top: auto;
+        }
+
+        /* Main content styles */
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 0, 76, 0.5);
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .filter-select {
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .add-team-btn {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-team-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 0, 76, 0.3);
+        }
+
+        .teams-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: rgba(255, 0, 76, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .teams-table th,
+        .teams-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 0, 76, 0.2);
+        }
+
+        .teams-table th {
+            background: rgba(255, 0, 76, 0.1);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: normal;
+            color: #ff004c;
+        }
+
+        .teams-table tr:hover {
+            background: rgba(255, 0, 76, 0.1);
+        }
+
+        .action-btn {
+            padding: 0.5rem;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            color: #ff8f00;
+        }
+
+        .delete-btn:hover {
+            color: #ff004c;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            padding: 2rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            color: #ff004c;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #b3b3cc;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .modal-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-btn {
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            color: #fff;
+        }
+
+        .cancel-btn {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+        }
+
+        /* Responsive styles */
+        @media (max-width: 1200px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-bar {
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                width: 60px;
+            }
+
+            .admin-logo {
+                font-size: 1.2rem;
+            }
+
+            .nav-item span {
+                display: none;
+            }
+
+            .nav-item i {
+                margin-right: 0;
+            }
+
+            .nav-item {
+                justify-content: center;
+                padding: 1rem;
+            }
+
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+                padding: 1rem;
+            }
+
+            .teams-table {
+                display: block;
+                overflow-x: auto;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 1.5rem;
+            }
+
+            .team-info {
+                padding: 1rem;
+            }
+
+            .team-leader {
+                flex-direction: column;
+                gap: 0.8rem;
+                text-align: center;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .table td,
+            .table th {
+                padding: 0.5rem;
+                font-size: 0.9rem;
+            }
+
+            .team-actions {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+
+        /* Add these styles for the toggle switch */
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 0, 76, 0.2);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+
+        .status-text {
+            color: #b3b3cc;
+            font-size: 0.9rem;
+        }
+
+        /* Team info styles */
+        .team-info {
+            background: rgba(255, 0, 76, 0.05);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+        }
+
+        .team-leader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .team-leader .label {
+            color: #b3b3cc;
+            font-size: 0.9rem;
+        }
+
+        .team-leader .value {
+            color: #ff004c;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+        }
+        
+        .status-badge.active {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+        
+        .status-badge.banned {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+        }
+
+        /* Enhanced responsive styles for tables */
+        @media (max-width: 1024px) {
+            .teams-table {
+                font-size: 0.9rem;
+            }
+
+            .teams-table th,
+            .teams-table td {
+                padding: 0.8rem;
+            }
+
+            .status-badge {
+                padding: 0.2rem 0.6rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .teams-table {
+                /* Convert table to cards for mobile */
+                display: block;
+                background: none;
+                border-radius: 0;
+            }
+
+            .teams-table thead {
+                display: none; /* Hide table headers */
+            }
+
+            .teams-table tbody {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1rem;
+            }
+
+            .teams-table tr {
+                display: block;
+                background: rgba(255, 0, 76, 0.05);
+                border: 1px solid rgba(255, 0, 76, 0.2);
+                border-radius: 10px;
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .teams-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid rgba(255, 0, 76, 0.1);
+            }
+
+            .teams-table td:last-child {
+                border-bottom: none;
+                justify-content: flex-end;
+            }
+
+            /* Add labels for mobile view */
+            .teams-table td::before {
+                content: attr(data-label);
+                font-weight: bold;
+                margin-right: 1rem;
+                color: #ff004c;
+            }
+
+            /* Adjust action buttons spacing */
+            .action-btn {
+                padding: 0.8rem;
+                margin-left: 0.5rem;
+            }
+
+            /* Adjust modal content for mobile */
+            .modal-content {
+                width: 95%;
+                margin: 1rem;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            .team-info {
+                padding: 1rem;
+            }
+
+            .team-leader {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .toggle-switch {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .teams-table tbody {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                gap: 0.8rem;
+            }
+
+            .search-input,
+            .filter-select,
+            .add-team-btn {
+                width: 100%;
+                max-width: none;
+            }
+
+            .modal-buttons {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+
+            .modal-btn {
+                width: 100%;
+            }
+        }
+
+        /* Add smooth transitions */
+        .teams-table tr {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .teams-table tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 0, 76, 0.15);
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: rgba(26, 26, 46, 0.95);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 10px;
+            min-width: 300px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.confirm {
+            background: rgba(26, 26, 46, 0.95);
+        }
+
+        .toast .toast-content {
+            flex-grow: 1;
+            margin-right: 1rem;
+            color: #fff;
+        }
+
+        .toast .toast-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .toast-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .toast-btn.confirm {
+            background: #ff004c;
+            color: white;
+        }
+
+        .toast-btn.confirm:hover {
+            background: #ff1a5e;
+        }
+
+        .toast-btn.cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #b3b3cc;
+        }
+
+        .toast-btn.cancel:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-sidebar">
+        <div class="admin-logo">ZDA ADMIN</div>
+        <div class="nav-links">
+            <a href="/admin" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/users" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="/admin/teams" class="nav-item active">
+                <i class="fas fa-user-group"></i>
+                <span>Teams</span>
+            </a>
+            <a href="/admin/challenges" class="nav-item">
+                <i class="fas fa-flag"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="/admin/notifications" class="nav-item">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <a href="/admin/settings" class="nav-item">
+                <i class="fas fa-gear"></i>
+                <span>Settings</span>
+            </a>
+            <a href="/logout" class="nav-item logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="controls">
+            <div class="search-bar">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="Search teams...">
+            </div>
+
+            <div class="filters">
+                <select class="filter-select" id="memberFilter">
+                    <option value="">All Members</option>
+                    <option value="1-3">1-3 Members</option>
+                    <option value="4-6">4-6 Members</option>
+                    <option value="7+">7+ Members</option>
+                </select>
+
+                <select class="filter-select" id="scoreFilter">
+                    <option value="">All Scores</option>
+                    <option value="0-1000">0-1000 pts</option>
+                    <option value="1001-3000">1001-3000 pts</option>
+                    <option value="3001+">3001+ pts</option>
+                </select>
+            </div>
+
+            <button class="add-team-btn" onclick="openModal()">
+                <i class="fas fa-plus"></i> Add Team
+            </button>
+        </div>
+
+        <table class="teams-table">
+            <thead>
+                <tr>
+                    <th>Team ID</th>
+                    <th>Team Name</th>
+                    <th>Team Leader</th>
+                    <th>Members</th>
+                    <th>Total Score</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in teams %}
+                <tr>
+                    <td data-label="Team ID">{{ team.id }}</td>
+                    <td data-label="Team Name">{{ team.name }}</td>
+                    <td data-label="Team Leader">{{ team.leader_name }}</td>
+                    <td data-label="Members">{{ team.member_count }}</td>
+                    <td data-label="Total Score">{{ '{:,}'.format(team.total_score) }}</td>
+                    <td data-label="Status">
+                        <span class="status-badge {% if team.is_banned %}banned{% else %}active{% endif %}">
+                            {{ 'Banned' if team.is_banned else 'Active' }}
+                        </span>
+                    </td>
+                    <td data-label="Actions">
+                        <button class="action-btn edit-btn" onclick="openModal(true, {
+                            team_code: '{{ team.team_code }}',
+                            is_banned: {{ team.is_banned|tojson }},
+                            id: '{{ team.id }}'
+                        })">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn delete-btn" onclick="confirmDelete('{{ team.id }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Add/Edit Team Modal -->
+    <div class="modal" id="teamModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Add New Team</h2>
+            <form id="teamForm">
+                <div class="team-info">
+                    <div class="team-leader">
+                        <span class="label">Team Code:</span>
+                        <span class="value" id="teamCode"></span>
+                    </div>
+                </div>
+
+                <div class="toggle-switch" id="banToggle" style="display: none;">
+                    <label class="switch">
+                        <input type="checkbox" id="banStatus">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="status-text">Team Status: <span id="statusText">Active</span></span>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn cancel-btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="modal-btn save-btn">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add this before closing body tag -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        function openModal(isEdit = false, teamData = null) {
+            const modal = document.getElementById('teamModal');
+            const title = modal.querySelector('.modal-title');
+            const banToggle = document.getElementById('banToggle');
+            const teamCode = document.getElementById('teamCode');
+            const banStatus = document.getElementById('banStatus');
+            
+            title.textContent = isEdit ? 'Edit Team' : 'Add New Team';
+            banToggle.style.display = isEdit ? 'flex' : 'none';
+            
+            if (isEdit && teamData) {
+                teamCode.textContent = teamData.team_code;
+                banStatus.checked = teamData.is_banned;
+                statusText.textContent = teamData.is_banned ? 'Banned' : 'Active';
+                statusText.style.color = teamData.is_banned ? '#ff004c' : '#00ff88';
+                // Store team ID for form submission
+                modal.dataset.teamId = teamData.id;
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        // Add ban toggle functionality
+        const banStatus = document.getElementById('banStatus');
+        const statusText = document.getElementById('statusText');
+        
+        banStatus.addEventListener('change', function() {
+            statusText.textContent = this.checked ? 'Banned' : 'Active';
+            statusText.style.color = this.checked ? '#ff004c' : '#00ff88';
+        });
+
+        function closeModal() {
+            document.getElementById('teamModal').style.display = 'none';
+            // Reset form and toggle when closing
+            document.getElementById('teamForm').reset();
+            document.getElementById('banStatus').checked = false;
+            document.getElementById('statusText').textContent = 'Active';
+            document.getElementById('statusText').style.color = '#00ff88';
+        }
+
+        function showToast(message, type = 'info', actions = null) {
+            const container = document.getElementById('toastContainer');
+            
+            // Remove any existing toast first
+            const existingToasts = container.querySelectorAll('.toast');
+            existingToasts.forEach(toast => toast.remove());
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let toastContent = `
+                <div class="toast-content">${message}</div>
+            `;
+            
+            if (actions) {
+                toastContent += `
+                    <div class="toast-actions">
+                        ${actions.map(action => `
+                            <button class="toast-btn ${action.type}" onclick="${action.onClick}">
+                                ${action.text}
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            toast.innerHTML = toastContent;
+            container.appendChild(toast);
+
+            // Auto-dismiss non-confirmation toasts after 3 seconds
+            if (!actions) {
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease-out forwards';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        }
+
+        async function deleteTeam(teamId) {
+            try {
+                const response = await fetch(`/api/admin/teams/${teamId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('Team deleted successfully', 'success');
+                    // Remove the team row from the table
+                    const teamRow = document.querySelector(`tr[data-team-id="${teamId}"]`);
+                    if (teamRow) {
+                        teamRow.style.animation = 'slideOut 0.3s ease-out forwards';
+                        setTimeout(() => teamRow.remove(), 300);
+                    }
+                } else {
+                    showToast(data.message || 'Error deleting team', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Network error while deleting team', 'error');
+            }
+        }
+
+        function confirmDelete(teamId) {
+            showToast(
+                'Are you sure you want to delete this team?',
+                'confirm',
+                [
+                    {
+                        text: 'Cancel',
+                        type: 'cancel',
+                        onClick: `dismissToast()`
+                    },
+                    {
+                        text: 'Delete',
+                        type: 'confirm',
+                        onClick: `deleteTeam('${teamId}')`
+                    }
+                ]
+            );
+        }
+
+        function dismissToast() {
+            const toast = document.querySelector('.toast');
+            if (toast) {
+                toast.style.animation = 'slideOut 0.3s ease-out forwards';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }
+
+        // Update the table row to include data-team-id
+        document.querySelectorAll('.teams-table tbody tr').forEach(row => {
+            const teamId = row.querySelector('td:first-child').textContent;
+            row.setAttribute('data-team-id', teamId);
+        });
+
+        // Form submission
+        document.getElementById('teamForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const modal = document.getElementById('teamModal');
+            const teamId = modal.dataset.teamId;
+            const isBanned = document.getElementById('banStatus').checked;
+
+            try {
+                const response = await fetch(`/api/admin/teams/${teamId}/toggle-ban`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ is_banned: isBanned })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    closeModal();
+                    window.location.reload(); // Refresh the page to show updated status
+                } else {
+                    throw new Error(result.message || 'Failed to update team status');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating team status: ' + error.message);
+            }
+        });
+
+        // Close modal when clicking outside
+        window.onclick = (event) => {
+            const modal = document.getElementById('teamModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Add toggle ban functionality
+        async function toggleBan(teamId) {
+            try {
+                const response = await fetch(`/api/admin/teams/${teamId}/toggle-ban`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    location.reload();
+                }
+            } catch (error) {
+                console.error('Error toggling ban status:', error);
+            }
+        }
+    </script>
+</body>
+</html>
