@@ -1522,6 +1522,178 @@ def admin_settings():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+         
+@app.route('/team')
+@login_required
+def team():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Check if user has a pending request
+        c.execute('''SELECT t.name, t.team_code, tr.status 
+                     FROM team_requests tr
+                     JOIN teams t ON tr.team_id = t.id
+                     WHERE tr.user_id = ? AND tr.status = 'pending' ''', 
+                 (session['user_id'],))
+        pending_request = c.fetchone()
+        
+        if pending_request:
+            return render_template('client/team.html',
+                                pending_request=True,
+                                team_name=pending_request[0],
+                                team_code=pending_request[1])
+        
+        # Get user's team info - now including points directly from teams table
+        c.execute('''SELECT t.name, t.team_code, COUNT(DISTINCT u.id) as member_count,
+                           u.is_leader, t.points as team_points, t.is_banned
+                     FROM users u 
+                     JOIN teams t ON u.team_id = t.id 
+                     WHERE u.id = ?
+                     GROUP BY t.id''', (session['user_id'],))
+        team_info = c.fetchone()
+        
+        if not team_info:
+            return redirect(url_for('dashboard'))
+        
+        team_name, team_code, member_count, is_leader, total_points, is_banned = team_info
+        
+        # Get pending requests if user is team leader
+        pending_requests = []
+        if is_leader:
+            c.execute('''SELECT u.id, u.username, tr.id
+                         FROM team_requests tr
+                         JOIN users u ON tr.user_id = u.id
+                         WHERE tr.team_id = (SELECT team_id FROM users WHERE id = ?)
+                         AND tr.status = 'pending' ''',
+                     (session['user_id'],))
+            pending_requests = c.fetchall()
+        
+        # Get team members info with their points
+        c.execute('''SELECT u.username, u.is_leader,
+                     COALESCE(SUM(sc.points_awarded), 0) as points
+                     FROM users u
+                     JOIN teams t ON u.team_id = t.id
+                     LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+                     WHERE t.team_code = ?
+                     GROUP BY u.id
+                     ORDER BY u.is_leader DESC, points DESC, u.username''', 
+                 (team_code,))
+        team_members = c.fetchall()
+        
+        # Get team stats safely (handling no challenges case)
+        try:
+            c.execute('''SELECT COUNT(DISTINCT sc.challenge_id) as solved_challenges
+                         FROM solved_challenges sc
+                         JOIN users u ON sc.user_id = u.id
+                         JOIN teams t ON u.team_id = t.id
+                         WHERE t.team_code = ?''', (team_code,))
+            solved_challenges = c.fetchone()[0] or 0
+        except:
+            solved_challenges = 0
+        
+        try:
+            c.execute('SELECT COUNT(*) FROM challenges')
+            total_challenges = c.fetchone()[0] or 0
+        except:
+            total_challenges = 0
+        
+        # Calculate team rank based on points from teams table
+        rank = None
+        if not is_banned:
+            c.execute('''WITH team_ranks AS (
+                           SELECT id, 
+                                  RANK() OVER (ORDER BY points DESC) as rank
+                           FROM teams
+                           WHERE is_banned = 0
+                        )
+                        SELECT rank 
+                        FROM team_ranks 
+                        WHERE id = (SELECT team_id FROM users WHERE id = ?)''', 
+                     (session['user_id'],))
+            rank_result = c.fetchone()
+            rank = rank_result[0] if rank_result else 1
+        
+        return render_template('client/team.html',
+                             pending_request=False,
+                             team_name=team_name,
+                             team_code=team_code,
+                             member_count=member_count,
+                             team_members=team_members,
+                             pending_requests=pending_requests,
+                             is_leader=is_leader,
+                             solved_challenges=solved_challenges,
+                             total_challenges=total_challenges,
+                             total_points=total_points,
+                             rank=rank,
+                             is_banned=is_banned)
+                             
+    finally:
+        conn.close()
+
+@app.route('/team/members')
+@login_required
+def team_members():
+    return render_template('client/team_members.html')
+
+@app.route('/team/settings')
+@login_required
+def team_settings():
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        # Get user's team info
+        c.execute('''SELECT t.id, t.name, t.team_code, t.points,
+                        COUNT(DISTINCT u2.id) as member_count,
+                        COUNT(DISTINCT sc.challenge_id) as solved_challenges
+                 FROM users u
+                 JOIN teams t ON u.team_id = t.id
+                 LEFT JOIN users u2 ON t.id = u2.team_id
+                 LEFT JOIN solved_challenges sc ON u2.id = sc.user_id
+                 WHERE u.id = ?
+                 GROUP BY t.id''', (g.user['id'],))
+        team_info = c.fetchone()
+        
+        if not team_info:
+            flash('You are not in a team')
+            return redirect(url_for('dashboard'))
+        
+        # Get team members
+        c.execute('''SELECT id, username, is_leader
+                    FROM users
+                    WHERE team_id = ?
+                    ORDER BY is_leader DESC, username''', (team_info[0],))
+        members = [
+            {
+                'id': row[0],
+                'username': row[1],
+                'is_leader': bool(row[2])
+            }
+            for row in c.fetchall()
+        ]
+
+        team = {
+            'id': team_info[0],
+            'name': team_info[1],
+            'team_code': team_info[2],
+            'total_points': team_info[3],
+            'member_count': team_info[4],
+            'solved_challenges': team_info[5],
+            'members': members
+        }
+
+        return render_template('client/team_settings.html', team=team)
+
+    except sqlite3.Error as e:
+        flash('Database error occurred')
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        flash('An error occurred')
+        return redirect(url_for('dashboard'))
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 if __name__ == '__main__':
     try:
