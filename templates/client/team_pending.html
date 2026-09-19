@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Request Pending - Zero Day Arena</title>
+    <!-- Include your existing styles -->
+    <style>
+        .pending-message {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            margin: 2rem auto;
+            max-width: 600px;
+        }
+        
+        .pending-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: #00ff88;
+            margin-bottom: 1rem;
+        }
+        
+        .team-info {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Include your sidebar -->
+    
+    <div class="main-content">
+        <div class="pending-message">
+            <h2 class="pending-title">Team Join Request Pending</h2>
+            <div class="team-info">
+                <p>Team Name: {{ team_name }}</p>
+                <p>Team Code: {{ team_code }}</p>
+            </div>
+            <p>Your request to join this team is pending approval from the team leader.</p>
+            <p>Please check back later.</p>
+        </div>
+    </div>
+</body>
+</html> 
