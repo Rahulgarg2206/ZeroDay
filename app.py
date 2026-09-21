@@ -1695,6 +1695,481 @@ def team_settings():
         if 'conn' in locals():
             conn.close()
 
+@app.route('/api/admin/challenges', methods=['POST'])
+@login_required
+def add_challenge():
+    try:
+        data = request.form
+        files = request.files.getlist('files[]')
+        
+        # Validate required fields
+        required_fields = ['title', 'description', 'points', 'category', 'flag', 'difficulty']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'Missing required field: {field}'
+                }), 400
+        
+        # Validate points
+        try:
+            points = int(data['points'])
+            if points < 100:
+                return jsonify({
+                    'success': False,
+                    'message': 'Points must be at least 100'
+                }), 400
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid points value'
+            }), 400
+
+        # Process the challenge
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # Generate short_id
+            short_id = generate_short_id()
+            
+            # Create challenge directory
+            title = secure_challenge_name(data['title'])
+            challenge_dir = os.path.join(UPLOAD_FOLDER, title)
+            os.makedirs(challenge_dir, exist_ok=True)
+
+            # Insert challenge
+            c.execute('''INSERT INTO challenges 
+                        (short_id, title, description, points, category, flag, 
+                         difficulty, files_directory, challenge_type, wrong_flag_penalty)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                     (short_id, data['title'], data['description'], points,
+                      data['category'], data['flag'], data['difficulty'],
+                      challenge_dir, data.get('challenge_type', 'static'),
+                      int(data.get('wrong_flag_penalty', 0))))
+            
+            challenge_id = c.lastrowid
+
+            # Handle hints
+            if 'hints' in data:
+                try:
+                    hints = json.loads(data['hints'])
+                    for hint in hints:
+                        if not isinstance(hint, dict) or 'text' not in hint or 'cost' not in hint:
+                            continue
+                        try:
+                            cost = int(hint['cost'])
+                            if cost < 0:
+                                continue
+                            c.execute('''INSERT INTO hints (challenge_id, hint_text, content, cost)
+                                       VALUES (?, ?, ?, ?)''',
+                                    (challenge_id, hint['text'], hint['text'], cost))
+                        except ValueError:
+                            continue
+                except json.JSONDecodeError:
+                    pass
+
+            # Handle files
+            saved_files = []
+            errors = []
+            
+            for file in files:
+                if file and file.filename:
+                    try:
+                        # Check file size
+                        file.seek(0, os.SEEK_END)
+                        size = file.tell()
+                        file.seek(0)
+                        
+                        if size > MAX_CONTENT_LENGTH:
+                            errors.append(f"File {file.filename} exceeds maximum size of 50MB")
+                            continue
+
+                        filename = secure_upload_filename(file.filename)
+                        filepath = os.path.join(challenge_dir, filename)
+                        
+                        # Save file
+                        file.save(filepath)
+                        
+                        # Store in database
+                        db_filepath = os.path.join(title, filename)
+                        c.execute('''INSERT INTO challenge_files 
+                                   (challenge_id, filename, filepath)
+                                   VALUES (?, ?, ?)''',
+                                (challenge_id, filename, db_filepath))
+                        
+                        file_id = c.lastrowid
+                        saved_files.append({
+                            'id': file_id,
+                            'name': filename,
+                            'path': db_filepath
+                        })
+                    except Exception as e:
+                        errors.append(f"Error saving {file.filename}: {str(e)}")
+
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Challenge created successfully',
+                'challenge_id': challenge_id,
+                'files': saved_files,
+                'errors': errors if errors else None
+            })
+            
+        except sqlite3.Error as e:
+            conn.rollback()
+            if os.path.exists(challenge_dir):
+                import shutil
+                shutil.rmtree(challenge_dir)
+            return jsonify({
+                'success': False,
+                'message': f'Database error: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+@app.route('/api/admin/challenges/<int:challenge_id>', methods=['PUT'])
+@login_required
+def update_challenge(challenge_id):
+    try:
+        data = request.form
+        files = request.files.getlist('files[]')
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # Update challenge basic info
+            c.execute('''UPDATE challenges 
+                        SET title = ?, description = ?, points = ?, 
+                            category = ?, flag = ?, difficulty = ?,
+                            challenge_type = ?, wrong_flag_penalty = ?
+                        WHERE id = ?''',
+                     (data.get('title'), data.get('description'), data.get('points'),
+                      data.get('category'), data.get('flag'), data.get('difficulty'),
+                      data.get('challenge_type', 'static'), 
+                      int(data.get('wrong_flag_penalty', 0)),
+                      challenge_id))
+
+            # Handle hints
+            if 'hints' in data:
+                hints = json.loads(data['hints'])
+                # Delete existing hints
+                c.execute('DELETE FROM hints WHERE challenge_id = ?', (challenge_id,))
+                # Add new hints
+                for hint in hints:
+                    c.execute('''INSERT INTO hints (challenge_id, hint_text, content, cost)
+                               VALUES (?, ?, ?, ?)''',
+                            (challenge_id, hint['text'], hint['text'], int(hint['cost'])))
+
+            # Handle new files
+            if files:
+                for file in files:
+                    if file and file.filename:
+                        filename = secure_upload_filename(file.filename)
+                        filepath = os.path.join(UPLOAD_FOLDER, str(challenge_id), filename)
+                        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                        file.save(filepath)
+                        
+                        c.execute('''INSERT INTO challenge_files 
+                                   (challenge_id, filename, filepath)
+                                   VALUES (?, ?, ?)''',
+                                (challenge_id, filename, filepath))
+
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Challenge updated successfully'
+            })
+            
+        except sqlite3.Error as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Database error: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+@app.route('/api/admin/challenges/<int:challenge_id>/toggle', methods=['POST'])
+@login_required
+def toggle_challenge(challenge_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get current is_hidden value
+        c.execute('SELECT COALESCE(is_hidden, 0) FROM challenges WHERE id = ?', 
+                 (challenge_id,))
+        current_state = c.fetchone()[0]
+        
+        # Toggle the value
+        c.execute('UPDATE challenges SET is_hidden = ? WHERE id = ?', 
+                 (not bool(current_state), challenge_id))
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Challenge visibility updated successfully'
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+    finally:
+        conn.close()
+
+@app.route('/api/admin/challenges/<int:challenge_id>/files', methods=['POST'])
+@login_required
+def upload_files(challenge_id):
+    try:
+        if 'files[]' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'No files in request'
+            }), 400
+
+        files = request.files.getlist('files[]')
+        if not files or not any(file.filename for file in files):
+            return jsonify({
+                'success': False,
+                'message': 'No files selected'
+            }), 400
+
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+
+        try:
+            # Get challenge directory
+            c.execute('SELECT title FROM challenges WHERE id = ?', (challenge_id,))
+            result = c.fetchone()
+            if not result:
+                return jsonify({
+                    'success': False,
+                    'message': 'Challenge not found'
+                }), 404
+
+            challenge_title = secure_upload_filename(result[0])
+            challenge_dir = os.path.join(UPLOAD_FOLDER, challenge_title)
+            
+            # Create directory if it doesn't exist
+            os.makedirs(challenge_dir, exist_ok=True)
+
+            saved_files = []
+            errors = []
+
+            for file in files:
+                if file and file.filename:
+                    try:
+                        # Check file size
+                        file.seek(0, os.SEEK_END)
+                        size = file.tell()
+                        file.seek(0)
+                        
+                        if size > MAX_CONTENT_LENGTH:
+                            errors.append(f"File {file.filename} exceeds maximum size of 50MB")
+                            continue
+
+                        filename = secure_upload_filename(file.filename)
+                        filepath = os.path.join(challenge_dir, filename)
+                        
+                        # Save file
+                        file.save(filepath)
+                        
+                        # Store in database
+                        db_filepath = os.path.join(challenge_title, filename)
+                        c.execute('''INSERT INTO challenge_files 
+                                   (challenge_id, filename, filepath)
+                                   VALUES (?, ?, ?)''',
+                                (challenge_id, filename, db_filepath))
+                        
+                        file_id = c.lastrowid
+                        saved_files.append({
+                            'id': file_id,
+                            'name': filename,
+                            'path': db_filepath
+                        })
+                    except Exception as e:
+                        errors.append(f"Error saving {file.filename}: {str(e)}")
+
+            if not saved_files and errors:
+                return jsonify({
+                    'success': False,
+                    'message': 'No files were saved',
+                    'errors': errors
+                }), 400
+
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': f'Successfully uploaded {len(saved_files)} files',
+                'files': saved_files,
+                'errors': errors if errors else None
+            })
+
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Database error: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+@app.route('/api/admin/challenges/<int:challenge_id>/files/<int:file_id>', 
+           methods=['DELETE'])
+@login_required  # Add admin_required decorator later
+def delete_challenge_file(challenge_id, file_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get file path
+        c.execute('SELECT filepath FROM challenge_files WHERE id=? AND challenge_id=?',
+                 (file_id, challenge_id))
+        filepath = c.fetchone()[0]
+        
+        # Delete file from filesystem
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        
+        # Delete from database
+        c.execute('DELETE FROM challenge_files WHERE id=?', (file_id,))
+        conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+    finally:
+        conn.close()
+
+@app.route('/api/admin/challenges/<int:challenge_id>', methods=['DELETE'])
+@login_required
+def delete_challenge(challenge_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get challenge info
+        c.execute('SELECT files_directory FROM challenges WHERE id = ?', (challenge_id,))
+        challenge = c.fetchone()
+        
+        if not challenge:
+            return jsonify({
+                'success': False,
+                'message': 'Challenge not found'
+            })
+        
+        # Delete challenge files from filesystem
+        if challenge[0] and os.path.exists(challenge[0]):
+            import shutil
+            shutil.rmtree(challenge[0])
+        
+        # Delete all related records
+        c.execute('DELETE FROM hints WHERE challenge_id = ?', (challenge_id,))
+        c.execute('DELETE FROM challenge_files WHERE challenge_id = ?', (challenge_id,))
+        c.execute('DELETE FROM solved_challenges WHERE challenge_id = ?', (challenge_id,))
+        c.execute('DELETE FROM challenges WHERE id = ?', (challenge_id,))
+        
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Challenge deleted successfully'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+    finally:
+        conn.close()
+
+@app.route('/api/admin/challenges/<int:challenge_id>', methods=['GET'])
+@login_required
+def get_challenge_details(challenge_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get challenge details
+        c.execute('''
+            SELECT id, title, description, points, category,
+                   difficulty, flag, is_hidden, challenge_type, wrong_flag_penalty
+            FROM challenges 
+            WHERE id = ?
+        ''', (challenge_id,))
+        
+        challenge = c.fetchone()
+        if not challenge:
+            return jsonify({
+                'success': False,
+                'message': 'Challenge not found'
+            }), 404
+
+        # Get hints
+        c.execute('SELECT id, hint_text, cost FROM hints WHERE challenge_id = ?', 
+                 (challenge_id,))
+        hints = [{'id': h[0], 'hint_text': h[1], 'cost': h[2]} for h in c.fetchall()]
+
+        # Get files
+        c.execute('SELECT id, filename, filepath FROM challenge_files WHERE challenge_id = ?', 
+                 (challenge_id,))
+        files = [{'id': f[0], 'filename': f[1], 'filepath': f[2]} for f in c.fetchall()]
+
+        challenge_data = {
+            'id': challenge[0],
+            'title': challenge[1],
+            'description': challenge[2],
+            'points': challenge[3],
+            'category': challenge[4],
+            'difficulty': challenge[5],
+            'flag': challenge[6],
+            'is_hidden': bool(challenge[7]),
+            'challenge_type': challenge[8],
+            'wrong_flag_penalty': challenge[9],
+            'hints': hints,
+            'files': files
+        }
+
+        return jsonify({
+            'success': True,
+            'challenge': challenge_data
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+    finally:
+        conn.close()
+
+# Add this route for purchasing/viewing hints
+
 if __name__ == '__main__':
     try:
 
