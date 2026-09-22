@@ -1,0 +1,2766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Challenges Management - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Base styles from other admin pages */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        /* Admin sidebar styles */
+        .admin-sidebar {
+            width: 240px;
+            background: rgba(255, 0, 76, 0.05);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 0, 76, 0.2);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .admin-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+        }
+
+        .nav-item.active {
+            background: rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .nav-links {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logout {
+            margin-top: auto;
+        }
+
+        /* Main content styles */
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        /* Challenge specific styles */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 0, 76, 0.5);
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .filter-select {
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ff004c' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.762L10.825 4z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        .filter-select option {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 0.8rem;
+        }
+
+        .add-challenge-btn {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-challenge-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 0, 76, 0.3);
+        }
+
+        /* Challenge cards grid */
+        .challenges-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .challenge-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .challenge-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(255, 0, 76, 0.2);
+        }
+
+        .challenge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .challenge-title {
+            font-family: 'Orbitron', sans-serif;
+            color: #ff004c;
+            font-size: 1.2rem;
+            margin-right: 1rem;
+        }
+
+        .challenge-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #b3b3cc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0.5rem;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .edit-btn:hover {
+            color: #ff8f00;
+            background: rgba(255, 143, 0, 0.1);
+        }
+
+        .visibility-btn:hover {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .delete-btn:hover {
+            color: #ff004c;
+            background: rgba(255, 0, 76, 0.1);
+        }
+
+        .action-btn i {
+            font-size: 1.1rem;
+        }
+
+        /* Tooltip styles */
+        .action-btn i::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.4rem 0.8rem;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover i::after {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-5px);
+        }
+
+        .challenge-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .info-value {
+            color: #fff;
+        }
+
+        .difficulty-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .difficulty-easy {
+            background: rgba(0, 255, 0, 0.1);
+            color: #00ff00;
+        }
+
+        .difficulty-medium {
+            background: rgba(255, 165, 0, 0.1);
+            color: #ffa500;
+        }
+
+        .difficulty-hard {
+            background: rgba(255, 0, 0, 0.1);
+            color: #ff0000;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            padding: 2rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #ff004c;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            color: #ff3333;
+            transform: scale(1.1);
+        }
+
+        .edit-btn {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: scale(1.05);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #b3b3cc;
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            max-height: 300px;
+            min-height: 150px;
+            resize: vertical;
+            overflow-y: auto;
+        }
+
+        /* Custom scrollbar styles for textareas */
+        .form-textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .form-textarea::-webkit-scrollbar-track {
+            background: rgba(255, 0, 76, 0.05);
+            border-radius: 4px;
+        }
+
+        .form-textarea::-webkit-scrollbar-thumb {
+            background: rgba(255, 0, 76, 0.2);
+            border-radius: 4px;
+        }
+
+        .form-textarea::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 0, 76, 0.3);
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-weight: 500;
+        }
+
+        .cancel-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .save-btn {
+            background: #ff004c;
+            color: #fff;
+        }
+
+        .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .save-btn:hover {
+            background: #ff1a5e;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ff004c' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.762L10.825 4z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        .form-select option {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 0.8rem;
+        }
+
+        .category-group {
+            position: relative;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .add-category-btn {
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.1);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #ff004c;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-category-btn:hover {
+            background: rgba(255, 0, 76, 0.2);
+        }
+
+        .category-input {
+            display: none;
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .form-steps {
+            display: none;
+            padding: 1rem;
+        }
+
+        .form-steps.active {
+            display: block;
+        }
+
+        .hints-title {
+            margin-bottom: 1rem;
+            color: #fff;
+            font-size: 1.2rem;
+        }
+
+        .add-hint-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.1);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #ff004c;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .add-hint-btn:hover {
+            background: rgba(255, 0, 76, 0.2);
+        }
+
+        .step-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        .step-item {
+            cursor: pointer;
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            transition: all 0.3s ease;
+            opacity: 1; /* Always fully visible */
+        }
+
+        .step-item:hover {
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .step-item.active {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .step-item.active .step-number {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .step-item span {
+            font-size: 0.9rem;
+            color: #fff;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(255, 0, 76, 0.2);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .upload-area:hover {
+            border-color: #ff004c;
+            background: rgba(255, 0, 76, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            color: #ff004c;
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            color: #b3b3cc;
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-progress {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 255, 136, 0.1);
+            margin-top: 1rem;
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            transition: width 0.3s ease;
+        }
+
+        .uploaded-files {
+            margin-top: 1rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: rgba(255, 0, 76, 0.05);
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-name {
+            color: #fff;
+        }
+
+        .remove-file {
+            color: #ff004c;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .hint-group {
+            margin-top: 1rem;
+        }
+
+        .hint-item {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .hint-inputs {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border-radius: 8px;
+        }
+
+        .hint-text-group {
+            flex: 3;
+        }
+
+        .hint-cost-group {
+            flex: 1;
+        }
+
+        .hint-text-group, .hint-cost-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .hint-item {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .hint-item .form-label {
+            color: #b3b3cc;
+            font-size: 0.9rem;
+        }
+
+        .hint-item .form-input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .hint-item .form-input:focus {
+            border-color: #00ff88;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.1);
+        }
+
+        .remove-hint-btn {
+            background: rgba(255, 0, 76, 0.1);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .remove-hint-btn:hover {
+            background: rgba(255, 0, 76, 0.2);
+        }
+
+        .add-hint-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.1);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #ff004c;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .add-hint-btn:hover {
+            background: rgba(255, 0, 76, 0.2);
+        }
+
+        .edit-steps-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            gap: 2rem;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #666;
+        }
+
+        .step-item.active {
+            color: #ff004c;
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 0, 76, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .step-item.active .step-number {
+            background: #ff004c;
+            color: #fff;
+        }
+
+        .hint-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .hint-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #666;
+        }
+
+        .hint-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+        }
+
+        .hint-save {
+            color: #00ff88;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .hint-save:hover {
+            transform: scale(1.1);
+        }
+
+        .hint-item.edited .hint-save {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                width: 60px;
+            }
+
+            .admin-logo {
+                font-size: 1.2rem;
+            }
+
+            .nav-item span {
+                display: none;
+            }
+
+            .nav-item i {
+                margin-right: 0;
+            }
+
+            .nav-item {
+                justify-content: center;
+                padding: 1rem;
+            }
+
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+                padding: 1rem;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .search-bar {
+                max-width: none;
+            }
+
+            .filters {
+                flex-wrap: wrap;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 1.5rem;
+            }
+        }
+
+        /* Add these styles in the <style> section */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-success {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+        }
+
+        .toast-error {
+            background: rgba(255, 0, 76, 0.2);
+            border: 1px solid #ff004c;
+        }
+
+        .toast i {
+            font-size: 1.2rem;
+        }
+
+        .toast-success i {
+            color: #00ff88;
+        }
+
+        .toast-error i {
+            color: #ff004c;
+        }
+
+        /* Update the add-hint-btn style */
+        .add-hint-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Challenges page responsive styles */
+        @media (max-width: 768px) {
+            .challenges-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+
+            .challenge-card {
+                padding: 1rem;
+            }
+
+            .challenge-header {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+
+            .challenge-info {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .challenges-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .search-bar,
+            .filters,
+            .add-challenge-btn {
+                width: 100%;
+            }
+        }
+
+        /* Add this CSS for validation */
+        .form-input.error, .form-select.error, .form-textarea.error {
+            border-color: #ff004c !important;
+            background: rgba(255, 0, 76, 0.05) !important;
+        }
+
+        .step-item {
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active {
+            opacity: 1;
+        }
+
+        .form-steps {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .form-steps.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes toggleAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .animate-toggle {
+            animation: toggleAnimation 0.3s ease;
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .challenge-card {
+            transition: all 0.3s ease;
+        }
+
+        .action-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translate(-50%, -50%) scale(0);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .action-btn:active::after {
+            transform: translate(-50%, -50%) scale(2);
+        }
+
+        .edit-btn {
+            background: rgba(255, 143, 0, 0.1) !important;
+            color: #ff8f00 !important;
+            border: 1px solid rgba(255, 143, 0, 0.2) !important;
+        }
+
+        .edit-btn:hover {
+            background: rgba(255, 143, 0, 0.2) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 143, 0, 0.15);
+        }
+
+        .action-btn {
+            padding: 0.6rem !important;
+            margin: 0 0.2rem;
+            border-radius: 8px !important;
+        }
+
+        .action-btn i {
+            font-size: 1.2rem !important;
+        }
+
+        /* Improve tooltip visibility */
+        .action-btn i::after {
+            font-size: 0.85rem !important;
+            padding: 0.5rem 1rem !important;
+            background: rgba(0, 0, 0, 0.9) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .hint-inputs {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(0, 255, 136, 0.05);
+            border-radius: 8px;
+        }
+
+        .hint-text-group {
+            flex: 3;
+        }
+
+        .hint-cost-group {
+            flex: 1;
+        }
+
+        .hint-text-group, .hint-cost-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .hint-item {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .hint-item .form-label {
+            color: #b3b3cc;
+            font-size: 0.9rem;
+        }
+
+        .hint-item .form-input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .hint-item .form-input:focus {
+            border-color: #00ff88;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.1);
+        }
+
+        .form-help {
+            color: #b3b3cc;
+            font-size: 0.8rem;
+            margin-top: 0.3rem;
+            display: block;
+        }
+
+        #dynamicOptions {
+            padding: 1rem;
+            background: rgba(255, 0, 76, 0.05);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 0, 76, 0.1);
+        }
+
+        .existing-files {
+            margin-bottom: 1rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.8rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .file-action-btn {
+            background: none;
+            border: none;
+            color: #00ff88;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .file-action-btn:hover {
+            background: rgba(0, 255, 136, 0.1);
+            transform: scale(1.1);
+        }
+
+        /* Add this CSS for the info toast */
+        .toast.toast-info {
+            border-left: 4px solid #3498db;
+        }
+        .toast.toast-info i {
+            color: #3498db;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 255, 136, 0.3);
+            border-radius: 50%;
+            border-top-color: #00ff88;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .modal-btn.save-btn {
+            background: linear-gradient(45deg, #00ff88, #00ffff);
+            color: #000;
+            font-weight: bold;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        /* Style for edit mode */
+        .modal-btn.save-btn.edit-mode {
+            background: linear-gradient(45deg, #ff8f00, #ff004c);
+            color: #fff;
+        }
+
+        .file-path {
+            color: #666;
+            margin-left: 0.5rem;
+            font-size: 0.85em;
+        }
+
+        .upload-area.dragover {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.8rem;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .file-error {
+            color: #ff004c;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .description-toolbar {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.5rem;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .description-toolbar button {
+            background: rgba(255, 0, 76, 0.1);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            color: #fff;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .description-toolbar button:hover {
+            background: rgba(255, 0, 76, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .description-preview {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            padding: 1rem;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+        }
+
+        .description-preview b {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .description-preview i {
+            color: #00ffff;
+            font-style: italic;
+        }
+
+        .description-preview code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            color: #ff004c;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .description-preview s {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-sidebar">
+        <!-- Updated admin logo display -->
+        <div class="admin-logo">
+            {% if custom_logo %}
+                <img src="{{ custom_logo }}" alt="Logo" style="max-width:100%; height:auto;">
+            {% else %}
+                ZDA ADMIN
+            {% endif %}
+        </div>
+        <div class="nav-links">
+            <a href="/admin" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/users" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="/admin/teams" class="nav-item">
+                <i class="fas fa-user-group"></i>
+                <span>Teams</span>
+            </a>
+            <a href="/admin/challenges" class="nav-item active">
+                <i class="fas fa-flag"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="/admin/notifications" class="nav-item">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <a href="/admin/settings" class="nav-item">
+                <i class="fas fa-gear"></i>
+                <span>Settings</span>
+            </a>
+            <a href="/logout" class="nav-item logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="controls">
+            <div class="search-bar">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="Search challenges...">
+            </div>
+
+            <div class="filters">
+                <select class="filter-select" id="categoryFilter">
+                    <option value="">All Categories</option>
+                    <option value="web">Web</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="forensics">Forensics</option>
+                    <option value="pwn">Pwn</option>
+                    <option value="Reverse Enineering">Reverse Enineering</option>
+                    <option value="osint">Osint</option>
+                </select>
+
+                <select class="filter-select" id="difficultyFilter">
+                    <option value="">All Difficulties</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+
+            <button class="add-challenge-btn" onclick="openModal()">
+                <i class="fas fa-plus"></i> Add Challenge
+            </button>
+        </div>
+
+        <div class="challenges-grid">
+            <!-- Challenge Card Template -->
+            {% for challenge in challenges %}
+            <div class="challenge-card" data-id="{{ challenge.id }}">
+                <div class="challenge-header">
+                    <h3 class="challenge-title">{{ challenge.title }}</h3>
+                    <div class="challenge-actions">
+                        <button class="action-btn edit-btn" onclick='editChallenge({
+                            "id": {{ challenge.id }},
+                            "title": {{ challenge.title|tojson|safe }},
+                            "description": {{ challenge.description|tojson|safe }},
+                            "points": {{ challenge.points }},
+                            "category": {{ challenge.category|tojson|safe }},
+                            "difficulty": {{ challenge.difficulty|tojson|safe }},
+                            "flag": {{ challenge.flag|tojson|safe }},
+                            "is_hidden": {{ challenge.is_hidden|tojson }},
+                            "challenge_type": {{ challenge.challenge_type|tojson|safe if challenge.challenge_type else '"static"' }},
+                            "wrong_flag_penalty": {{ challenge.wrong_flag_penalty|default(0) }},
+                            "hint_count": {{ challenge.hint_count|default(0) }},
+                            "file_count": {{ challenge.file_count|default(0) }}
+                        })'>
+                            <i class="fas fa-edit" title="Edit Challenge"></i>
+                        </button>
+                        <button class="action-btn visibility-btn" 
+                                onclick="toggleChallenge({{ challenge.id }}, event)">
+                            <i class="fas fa-{% if challenge.is_hidden %}eye-slash{% else %}eye{% endif %}" 
+                               title="{% if challenge.is_hidden %}Show Challenge{% else %}Hide Challenge{% endif %}"></i>
+                        </button>
+                        <button class="action-btn delete-btn" 
+                                onclick="confirmDelete({{ challenge.id }})">
+                            <i class="fas fa-trash" title="Delete Challenge"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="challenge-info">
+                    <div class="info-item">
+                        <span class="info-label">Category</span>
+                        <span class="info-value">{{ challenge.category }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Points</span>
+                        <span class="info-value">{{ challenge.points }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Difficulty</span>
+                        <span class="difficulty-badge difficulty-{{ challenge.difficulty }}">
+                            {{ challenge.difficulty|title }}
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Solves</span>
+                        <span class="info-value">{{ challenge.solve_count }}</span>
+                    </div>
+                </div>
+                <div class="challenge-meta">
+                    <span class="meta-item">
+                        <i class="fas fa-lightbulb"></i> {{ challenge.hint_count }} hints
+                    </span>
+                    <span class="meta-item">
+                        <i class="fas fa-file"></i> {{ challenge.file_count }} files
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Add/Edit Challenge Modal -->
+    <div class="modal" id="challengeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add Challenge</h2>
+                <button type="button" class="close-btn" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="edit-steps-indicator">
+                <div class="step-item active" data-step="1">
+                    <div class="step-number">1</div>
+                    <span>Details</span>
+                </div>
+                <div class="step-item" data-step="2">
+                    <div class="step-number">2</div>
+                    <span>Hints</span>
+                </div>
+                <div class="step-item" data-step="3">
+                    <div class="step-number">3</div>
+                    <span>Files</span>
+                </div>
+            </div>
+
+            <form id="challengeForm" enctype="multipart/form-data">
+                <!-- Step 1: Challenge Details -->
+                <div class="form-steps active" id="step1">
+                    <div class="form-group">
+                        <label class="form-label" for="challengeName">Challenge Name</label>
+                        <input type="text" id="challengeName" name="title" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="description">Description</label>
+                        <div class="description-toolbar">
+                            <button type="button" onclick="formatText('bold')" title="Bold">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button type="button" onclick="formatText('italic')" title="Italic">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button type="button" onclick="formatText('bolditalic')" title="Bold Italic">
+                                <i class="fas fa-bold"></i><i class="fas fa-italic"></i>
+                            </button>
+                            <button type="button" onclick="formatText('strike')" title="Strikethrough">
+                                <i class="fas fa-strikethrough"></i>
+                            </button>
+                            <button type="button" onclick="formatText('code')" title="Code">
+                                <i class="fas fa-code"></i>
+                            </button>
+                            <button type="button" onclick="previewDescription()" title="Preview">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <textarea id="description" class="form-textarea" required></textarea>
+                        <div id="descriptionPreview" class="description-preview" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="points">Points</label>
+                        <input type="number" id="points" class="form-input" required min="100" step="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="category">Category</label>
+                        <select id="category" class="form-select" required>
+                            <option value="">Select Category</option>
+                            <option value="web">Web</option>
+                            <option value="crypto">Crypto</option>
+                            <option value="forensics">Forensics</option>
+                            <option value="pwn">Pwn</option>
+                            <option value="reverse">Reverse</option>
+                            <option value="custom">+ Add Custom</option>
+                        </select>
+                        <input type="text" id="customCategory" class="form-input" style="display: none;">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="difficulty">Difficulty</label>
+                        <select id="difficulty" class="form-select" required>
+                            <option value="">Select Difficulty</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                            <option value="expert">Expert</option>
+                            <option value="insane">Insane</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="flag">Flag</label>
+                        <input type="text" id="flag" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="challengeType">Challenge Type</label>
+                        <select id="challengeType" class="form-select" required>
+                            <option value="">Select Type</option>
+                            <option value="static">Static</option>
+                            <option value="dynamic">Dynamic</option>
+                        </select>
+                    </div>
+
+                    <div id="dynamicOptions" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label" for="wrongFlagPenalty">Wrong Flag Penalty (points)</label>
+                            <input type="number" id="wrongFlagPenalty" class="form-input" min="0" step="10" 
+                                   placeholder="Points to deduct for wrong attempts">
+                            <small class="form-help">Points to deduct when a wrong flag is submitted</small>
+                        </div>
+                    </div>
+
+                    <div class="modal-buttons">
+                        <button type="button" class="modal-btn cancel-btn" onclick="closeModal()">Cancel</button>
+                        <button type="button" class="modal-btn save-btn"></button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Hints -->
+                <div id="step2" class="form-steps">
+                    <h3 class="hints-title">Add Hint</h3>
+                    <div id="hintsContainer"></div>
+                    <button type="button" class="add-hint-btn" onclick="addHint()">
+                        <i class="fas fa-plus"></i> Add Hint
+                    </button>
+                    <div class="modal-buttons">
+                        <button type="button" class="modal-btn cancel-btn" onclick="previousStep()">Back</button>
+                        <button type="button" class="modal-btn save-btn"></button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Files -->
+                <div class="form-steps" id="step3">
+                    <div class="form-group">
+                        <label class="form-label">Challenge Files</label>
+                        <div id="existingFiles" class="existing-files">
+                            <!-- Existing files will be shown here -->
+                        </div>
+                        <div class="upload-area" onclick="triggerFileInput()">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <div class="upload-text">
+                                Drag & drop files here or click to browse<br>
+                                <small>All file types allowed. Maximum file size: 50MB</small>
+                            </div>
+                            <input type="file" class="file-input" id="fileInput" 
+                                   multiple
+                                   onchange="handleFiles(this.files)">
+                        </div>
+                        <div id="uploadedFiles" class="uploaded-files"></div>
+                    </div>
+                    <div class="modal-buttons">
+                        <button type="button" class="modal-btn cancel-btn" onclick="previousStep()">Back</button>
+                        <button type="button" class="modal-btn save-btn"></button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add this toast element before the closing body tag -->
+    <div class="toast" id="toast">
+        <i class="fas"></i>
+        <span class="toast-message"></span>
+    </div>
+
+    <!-- Add this before closing </body> tag -->
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 3;
+
+        // Add click handlers for step indicators
+        document.querySelectorAll('.step-item').forEach((item, index) => {
+            item.addEventListener('click', () => {
+                const stepNumber = index + 1;
+                
+                // Only allow clicking if previous steps are validated
+                if (stepNumber > currentStep) {
+                    // Need to validate all previous steps
+                    for (let i = 1; i < stepNumber; i++) {
+                        currentStep = i;
+                        if (!validateCurrentStep()) {
+                            return;
+                        }
+                    }
+                }
+                
+                currentStep = stepNumber;
+                showStep(currentStep);
+            });
+        });
+
+        // Update showStep function
+        function showStep(step) {
+            // Hide all steps
+            document.querySelectorAll('.form-steps').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Show current step
+            document.getElementById(`step${step}`).classList.add('active');
+            
+            // Update step indicators - keep them always clickable
+            document.querySelectorAll('.step-item').forEach((el, index) => {
+                if (index + 1 <= step) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+                // Always keep cursor pointer and full opacity
+                el.style.cursor = 'pointer';
+                el.style.opacity = '1';
+            });
+            
+            // Update button text and behavior based on mode
+            const isEdit = document.querySelector('input[name="challenge_id"]') !== null;
+            const saveBtn = document.querySelector(`#step${step} .modal-btn.save-btn`);
+            
+            if (saveBtn) {
+                if (isEdit) {
+                    // In edit mode, always show "Save Changes"
+                    saveBtn.textContent = 'Save Changes';
+                    saveBtn.onclick = async () => {
+                        if (await handleFinalSubmit()) {
+                            showToast('Changes saved successfully!', 'success');
+                        }
+                    };
+                } else {
+                    // In create mode, show step progression
+                    switch(step) {
+                        case 1:
+                            saveBtn.textContent = 'Next: Hints';
+                            saveBtn.onclick = () => nextStep();
+                            break;
+                        case 2:
+                            saveBtn.textContent = 'Next: Files';
+                            saveBtn.onclick = () => nextStep();
+                            break;
+                        case 3:
+                            saveBtn.textContent = 'Create Challenge';
+                            saveBtn.onclick = () => handleFinalSubmit();
+                            break;
+                    }
+                }
+            }
+
+            // Update step title
+            const stepTitles = {
+                1: 'Challenge Details',
+                2: 'Add Hints',
+                3: 'Upload Files'
+            };
+            document.querySelector('.modal-title').textContent = isEdit ? 
+                `Edit Challenge - ${stepTitles[step]}` : 
+                `Add Challenge - ${stepTitles[step]}`;
+
+            // Setup specific step content
+            if (step === 2) {
+                setupHintsSection();
+            }
+        }
+
+        // Update nextStep function to handle edit mode
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                if (!validateCurrentStep()) {
+                    return; // Stop if validation fails
+                }
+                
+                const isEdit = document.querySelector('input[name="challenge_id"]') !== null;
+                
+                if (isEdit) {
+                    // In edit mode, save changes immediately
+                    handleFinalSubmit();
+                } else {
+                    // In create mode, proceed to next step
+                    currentStep++;
+                    showStep(currentStep);
+                }
+            }
+        }
+
+        // Update the previousStep function
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+
+        // Initialize first step
+        function openModal(isEdit = false, challenge = null) {
+            const modal = document.getElementById('challengeModal');
+            const form = document.getElementById('challengeForm');
+            
+            // Reset form and clear any previous data
+            form.reset();
+            document.getElementById('hintsContainer').innerHTML = '';
+            document.getElementById('uploadedFiles').innerHTML = '';
+            document.getElementById('existingFiles').innerHTML = '';
+            
+            // Remove any existing challenge_id input
+            const existingIdInput = form.querySelector('input[name="challenge_id"]');
+            if (existingIdInput) {
+                existingIdInput.remove();
+            }
+
+            // Set initial step
+            currentStep = 1;
+            showStep(1);
+            
+            // Update modal title and button text
+            const modalTitle = document.querySelector('.modal-title');
+            if (isEdit && challenge) {
+                modalTitle.textContent = 'Edit Challenge';
+                // Add hidden input for challenge ID
+                const idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = 'challenge_id';
+                idInput.value = challenge.id;
+                form.appendChild(idInput);
+                
+                // Populate form with challenge data
+                populateEditForm(challenge);
+            } else {
+                modalTitle.textContent = 'Add New Challenge';
+            }
+
+            // Show modal
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('challengeModal').style.display = 'none';
+            resetForm();
+        }
+
+        function resetForm() {
+            document.getElementById('challengeForm').reset();
+            document.getElementById('uploadedFiles').innerHTML = '';
+            document.getElementById('hintsContainer').innerHTML = '';
+            document.querySelector('.modal-title').textContent = 'Add Challenge';
+            document.querySelectorAll('.modal-btn.save-btn').forEach(btn => {
+                btn.textContent = 'Create Challenge';
+            });
+            currentStep = 1;
+            showStep(1);
+            const idInput = document.querySelector('input[name="challenge_id"]');
+            if (idInput) idInput.remove();
+        }
+
+        function triggerFileInput() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFiles(files) {
+            const uploadedFiles = document.getElementById('uploadedFiles');
+            uploadedFiles.innerHTML = '';
+            
+            Array.from(files).forEach(file => {
+                // Validate file size (e.g., 50MB limit)
+                const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+                if (file.size > maxSize) {
+                    showToast(`File ${file.name} is too large. Maximum size is 50MB`, 'error');
+                    return;
+                }
+
+                // Create safe filename
+                const safeFileName = file.name.replace(/\s+/g, '_');
+                
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'file-item';
+                fileDiv.innerHTML = `
+                    <span class="file-name">
+                        <i class="fas fa-file"></i> ${safeFileName}
+                    </span>
+                    <div class="file-actions">
+                        <button class="file-action-btn" onclick="removeUploadedFile(this)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                uploadedFiles.appendChild(fileDiv);
+            });
+        }
+
+        function removeUploadedFile(button) {
+            const fileDiv = button.closest('.file-item');
+            fileDiv.remove();
+        }
+
+        // Add drag and drop support
+        const uploadArea = document.querySelector('.upload-area');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ff004c';
+            uploadArea.style.background = 'rgba(255, 0, 76, 0.05)';
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'rgba(255, 0, 76, 0.2)';
+            uploadArea.style.background = 'transparent';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'rgba(255, 0, 76, 0.2)';
+            uploadArea.style.background = 'transparent';
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // Update the closeModal function
+        function closeModal() {
+            const modal = document.getElementById('challengeModal');
+            const form = document.getElementById('challengeForm');
+            
+            // Reset form and clear files
+            form.reset();
+            document.getElementById('uploadedFiles').innerHTML = '';
+            document.getElementById('hintsContainer').innerHTML = '';
+            
+            // Reset steps
+            document.querySelectorAll('.form-steps').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById('step1').classList.add('active');
+            currentStep = 1;
+            
+            // Reset step indicators
+            updateStepIndicators();
+            
+            // Hide modal
+            modal.style.display = 'none';
+        }
+
+        function populateEditForm(challenge) {
+            document.getElementById('challengeName').value = challenge.title;
+            document.getElementById('description').value = challenge.description;
+            document.getElementById('points').value = challenge.points;
+            document.getElementById('category').value = challenge.category;
+            document.getElementById('difficulty').value = challenge.difficulty;
+            document.getElementById('flag').value = challenge.flag;
+            document.getElementById('challengeType').value = challenge.challenge_type || 'static';
+            
+            if (challenge.challenge_type === 'dynamic') {
+                document.getElementById('wrongFlagPenalty').value = challenge.wrong_flag_penalty || 0;
+                document.getElementById('dynamicOptions').style.display = 'block';
+            }
+
+            // Populate hints
+            if (challenge.hints && challenge.hints.length > 0) {
+                challenge.hints.forEach(hint => {
+                    addHint({
+                        id: hint.id,
+                        text: hint.hint_text,
+                        cost: hint.cost
+                    });
+                });
+            }
+
+            // Show existing files
+            if (challenge.files && challenge.files.length > 0) {
+                const existingFiles = document.getElementById('existingFiles');
+                challenge.files.forEach(file => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'file-item';
+                    fileDiv.innerHTML = `
+                        <span class="file-name">
+                            <i class="fas fa-file"></i> ${file.filename}
+                        </span>
+                        <div class="file-actions">
+                            <button class="file-action-btn" onclick="deleteFile(${challenge.id}, ${file.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    existingFiles.appendChild(fileDiv);
+                });
+            }
+        }
+
+        function addHint(hint = null) {
+            const hintsContainer = document.getElementById('hintsContainer');
+            
+            // Check if a hint already exists
+            if (hintsContainer.children.length > 0) {
+                showToast('Only one hint is allowed per challenge', 'error');
+                return;
+            }
+            
+            const hintItem = document.createElement('div');
+            hintItem.className = 'hint-item';
+            
+            // If editing an existing hint, include its ID
+            const hintIdInput = hint && hint.id ? 
+                `<input type="hidden" class="hint-id" value="${hint.id}">` : '';
+            
+            hintItem.innerHTML = `
+                <div class="hint-inputs">
+                    <div class="hint-text-group">
+                        <label class="form-label">Hint Text</label>
+                        <input type="text" class="hint-text form-input" 
+                               placeholder="Enter hint text" 
+                               value="${hint ? hint.text : ''}" required>
+                    </div>
+                    <div class="hint-cost-group">
+                        <label class="form-label">Cost</label>
+                        <input type="number" class="hint-cost form-input" 
+                               placeholder="Cost" min="0" 
+                               value="${hint ? hint.cost : '0'}" required>
+                    </div>
+                    ${hintIdInput}
+                </div>
+                <button type="button" class="remove-hint-btn" onclick="removeHint(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            hintsContainer.appendChild(hintItem);
+            
+            // Hide the add hint button since we've reached the limit
+            const addHintBtn = document.querySelector('.add-hint-btn');
+            if (addHintBtn) {
+                addHintBtn.style.display = 'none';
+            }
+        }
+
+        function removeHint(button) {
+            const hintItem = button.closest('.hint-item');
+            hintItem.remove();
+            
+            // Show the add hint button again since we're below the limit
+            const addHintBtn = document.querySelector('.add-hint-btn');
+            if (addHintBtn) {
+                addHintBtn.style.display = 'block';
+            }
+        }
+
+        async function saveHints() {
+            const challengeId = document.querySelector('input[name="challenge_id"]')?.value;
+            if (!challengeId) return true; // No hints to save for new challenge
+
+            try {
+                const hints = [];
+                document.querySelectorAll('.hint-item').forEach(item => {
+                    const hintText = item.querySelector('.hint-text').value.trim();
+                    const hintCost = parseInt(item.querySelector('.hint-cost').value) || 0;
+                    const hintId = item.querySelector('.hint-id')?.value;
+                    
+                    if (hintText) {
+                        hints.push({
+                            id: hintId,
+                            text: hintText,
+                            cost: hintCost
+                        });
+                    }
+                });
+
+                const response = await fetch(`/api/admin/challenges/${challengeId}/hints`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ hints })
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to save hints');
+                }
+
+                showToast('Hints saved successfully', 'success');
+                return true;
+            } catch (error) {
+                showToast('Error saving hints: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        function updateStepIndicators(step) {
+            document.querySelectorAll('.step-item').forEach((item, index) => {
+                item.classList.toggle('active', index + 1 === step);
+            });
+        }
+
+        function confirmDelete(challengeId) {
+            const toast = document.getElementById('toast');
+            const icon = toast.querySelector('i');
+            const messageEl = toast.querySelector('.toast-message');
+
+            // Remove existing classes
+            toast.classList.remove('toast-success', 'toast-error', 'show');
+            icon.classList.remove('fa-check-circle', 'fa-exclamation-circle');
+
+            // Add delete confirmation classes
+            toast.classList.add('toast-error');
+            icon.classList.add('fa-trash');
+            messageEl.innerHTML = `
+                Delete this challenge?
+                <div style="margin-top: 0.5rem;">
+                    <button onclick="deleteChallenge(${challengeId})" 
+                            style="background: #ff004c; border: none; padding: 0.3rem 0.8rem; border-radius: 4px; color: #fff; margin-right: 0.5rem; cursor: pointer;">
+                        Yes
+                    </button>
+                    <button onclick="hideToast()" 
+                            style="background: #333; border: none; padding: 0.3rem 0.8rem; border-radius: 4px; color: #fff; cursor: pointer;">
+                        No
+                    </button>
+                </div>
+            `;
+            toast.classList.add('show');
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('show', 'toast-success', 'toast-error', 'toast-info');
+            const icon = toast.querySelector('i');
+            icon.classList.remove('fa-check-circle', 'fa-exclamation-circle', 'fa-info-circle', 'fa-trash');
+        }
+
+        async function deleteChallenge(challengeId) {
+            try {
+                const response = await fetch(`/api/admin/challenges/${challengeId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    hideToast();
+                    showToast('Challenge deleted successfully', 'success');
+                    // Remove the challenge card with animation
+                    const challengeCard = document.querySelector(`.challenge-card[data-id="${challengeId}"]`);
+                    if (challengeCard) {
+                        challengeCard.style.animation = 'fadeOut 0.3s ease-out forwards';
+                        setTimeout(() => {
+                            challengeCard.remove();
+                        }, 300);
+                    } else {
+                        window.location.reload();
+                    }
+                } else {
+                    hideToast();
+                    showToast(result.message || 'Failed to delete challenge', 'error');
+                }
+            } catch (error) {
+                hideToast();
+                showToast('An error occurred while deleting the challenge', 'error');
+            }
+        }
+
+        // Form submission
+        document.getElementById('challengeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const isEdit = document.querySelector('input[name="challenge_id"]') !== null;
+            await handleFinalSubmit();
+        });
+
+        // Close modal when clicking outside
+        window.onclick = (event) => {
+            const modal = document.getElementById('challengeModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Add category selection handling
+        document.getElementById('category').addEventListener('change', function() {
+            const customInput = document.getElementById('customCategory');
+            if (this.value === 'custom') {
+                this.style.display = 'none';
+                customInput.style.display = 'block';
+                customInput.focus();
+                customInput.required = true;
+                this.required = false;
+            }
+        });
+
+        // Add back button functionality for custom category
+        document.getElementById('customCategory').addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const categorySelect = document.getElementById('category');
+                this.style.display = 'none';
+                categorySelect.style.display = 'block';
+                categorySelect.value = '';
+                categorySelect.required = true;
+                this.required = false;
+            }
+        });
+
+        // Add these event listeners to the existing ones
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('.hint-input, .hint-cost')) {
+                markHintEdited(e.target);
+            }
+        });
+
+        // Add toast functionality
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = toast.querySelector('i');
+            const messageEl = toast.querySelector('.toast-message');
+
+            // Remove existing classes
+            toast.classList.remove('toast-success', 'toast-error', 'toast-info');
+            icon.classList.remove('fa-check-circle', 'fa-exclamation-circle', 'fa-info-circle');
+
+            // Add new classes based on type
+            toast.classList.add(`toast-${type}`);
+            switch(type) {
+                case 'success':
+                    icon.classList.add('fa-check-circle');
+                    break;
+                case 'error':
+                    icon.classList.add('fa-exclamation-circle');
+                    break;
+                case 'info':
+                    icon.classList.add('fa-info-circle');
+                    break;
+            }
+            
+            messageEl.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        async function handleFinalSubmit() {
+            if (!validateCurrentStep()) {
+                return false;
+            }
+
+            showLoading();
+
+            try {
+                const formData = new FormData();
+                const isEdit = document.querySelector('input[name="challenge_id"]') !== null;
+                
+                // Add basic challenge info
+                formData.append('title', document.getElementById('challengeName').value.trim());
+                formData.append('description', document.getElementById('description').value.trim());
+                formData.append('points', document.getElementById('points').value.trim());
+                formData.append('category', document.getElementById('category').value === 'custom' ? 
+                    document.getElementById('customCategory').value.trim() : 
+                    document.getElementById('category').value);
+                formData.append('difficulty', document.getElementById('difficulty').value);
+                formData.append('flag', document.getElementById('flag').value.trim());
+                formData.append('challenge_type', document.getElementById('challengeType').value);
+                
+                if (document.getElementById('challengeType').value === 'dynamic') {
+                    formData.append('wrong_flag_penalty', 
+                        document.getElementById('wrongFlagPenalty').value.trim() || '0');
+                }
+
+                // Add hints
+                const hints = [];
+                document.querySelectorAll('.hint-item').forEach(item => {
+                    const hintText = item.querySelector('.hint-text').value.trim();
+                    const hintCost = parseInt(item.querySelector('.hint-cost').value) || 0;
+                    const hintId = item.querySelector('.hint-id')?.value;
+                    if (hintText) {
+                        hints.push({ 
+                            id: hintId, 
+                            text: hintText, 
+                            cost: hintCost 
+                        });
+                    }
+                });
+                formData.append('hints', JSON.stringify(hints));
+
+                // Add files
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput.files.length > 0) {
+                    Array.from(fileInput.files).forEach(file => {
+                        formData.append('files[]', file);
+                    });
+                }
+
+                // Determine URL based on mode
+                const challengeId = document.querySelector('input[name="challenge_id"]')?.value;
+                const url = isEdit ? 
+                    `/api/admin/challenges/${challengeId}` : 
+                    '/api/admin/challenges';
+
+                const response = await fetch(url, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(isEdit ? 'Challenge updated successfully!' : 'Challenge created successfully!', 'success');
+                    setTimeout(() => {
+                        closeModal();
+                        window.location.reload();
+                    }, 1500);
+                    return true;
+                } else {
+                    throw new Error(result.message || 'Failed to save challenge');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+                return false;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function toggleChallenge(challengeId, event) {
+            const button = event.currentTarget;
+            const icon = button.querySelector('i');
+            
+            try {
+                const response = await fetch(`/api/admin/challenges/${challengeId}/toggle`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Toggle icon immediately for better UX
+                    if (icon.classList.contains('fa-eye')) {
+                        icon.classList.replace('fa-eye', 'fa-eye-slash');
+                        icon.title = 'Show Challenge';
+                        showToast('Challenge hidden successfully', 'success');
+                    } else {
+                        icon.classList.replace('fa-eye-slash', 'fa-eye');
+                        icon.title = 'Hide Challenge';
+                        showToast('Challenge visible successfully', 'success');
+                    }
+                    
+                    // Add animation to the button
+                    button.classList.add('animate-toggle');
+                    setTimeout(() => button.classList.remove('animate-toggle'), 300);
+                } else {
+                    showToast(result.message || 'Failed to update visibility', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('An error occurred', 'error');
+            }
+        }
+
+        async function deleteFile(challengeId, fileId) {
+            if (!confirm('Are you sure you want to delete this file?')) return;
+            
+            try {
+                const response = await fetch(
+                    `/api/admin/challenges/${challengeId}/files/${fileId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('File deleted successfully', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('An error occurred', 'error');
+            }
+        }
+
+        function toggleDynamicOptions() {
+            const challengeType = document.getElementById('challengeType').value;
+            const dynamicOptions = document.getElementById('dynamicOptions');
+            dynamicOptions.style.display = challengeType === 'dynamic' ? 'block' : 'none';
+        }
+
+        async function editChallenge(challenge) {
+            try {
+                showToast('Loading challenge details...', 'info');
+                
+                // Fetch challenge details including hints
+                const response = await fetch(`/api/admin/challenges/${challenge.id}`, {
+                    method: 'GET',  // Explicitly specify GET method
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to load challenge details');
+                }
+
+                const challengeData = result.challenge;
+
+                // Populate basic challenge fields
+                document.getElementById('challengeName').value = challengeData.title || '';
+                document.getElementById('description').value = challengeData.description || '';
+                document.getElementById('points').value = challengeData.points || 100;
+                document.getElementById('category').value = challengeData.category || '';
+                document.getElementById('difficulty').value = challengeData.difficulty || '';
+                document.getElementById('flag').value = challengeData.flag || '';
+                document.getElementById('challengeType').value = challengeData.challenge_type || 'static';
+
+                // Handle dynamic options
+                if (challengeData.challenge_type === 'dynamic') {
+                    document.getElementById('wrongFlagPenalty').value = challengeData.wrong_flag_penalty || 0;
+                    document.getElementById('dynamicOptions').style.display = 'block';
+                } else {
+                    document.getElementById('dynamicOptions').style.display = 'none';
+                }
+
+                // Add challenge ID for edit mode
+                let idInput = document.querySelector('input[name="challenge_id"]');
+                if (!idInput) {
+                    idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'challenge_id';
+                    document.getElementById('challengeForm').appendChild(idInput);
+                }
+                idInput.value = challengeData.id;
+
+                // Clear and populate hints
+                const hintsContainer = document.getElementById('hintsContainer');
+                hintsContainer.innerHTML = '';
+
+                // Show existing hint if available
+                if (challengeData.hints && challengeData.hints.length > 0) {
+                    const hint = challengeData.hints[0]; // Get first hint since we only allow one
+                    addHint({
+                        id: hint.id,
+                        text: hint.hint_text,
+                        cost: hint.cost
+                    });
+                    
+                    // Hide add hint button since we have a hint
+                    const addHintBtn = document.querySelector('.add-hint-btn');
+                    if (addHintBtn) {
+                        addHintBtn.style.display = 'none';
+                    }
+                }
+
+                // Show existing files
+                const existingFiles = document.getElementById('existingFiles');
+                existingFiles.innerHTML = '';
+                if (challengeData.files && challengeData.files.length > 0) {
+                    challengeData.files.forEach(file => {
+                        const fileDiv = document.createElement('div');
+                        fileDiv.className = 'file-item';
+                        fileDiv.innerHTML = `
+                            <span class="file-name">
+                                <i class="fas fa-file"></i> ${file.filename}
+                                <small class="file-path">${file.filepath}</small>
+                            </span>
+                            <div class="file-actions">
+                                <button class="file-action-btn" onclick="downloadFile(${challengeData.id}, ${file.id})">
+                                    <i class="fas fa-download" title="Download File"></i>
+                                </button>
+                                <button class="file-action-btn" onclick="deleteFile(${challengeData.id}, ${file.id})">
+                                    <i class="fas fa-trash" title="Delete File"></i>
+                                </button>
+                            </div>
+                        `;
+                        existingFiles.appendChild(fileDiv);
+                    });
+                }
+
+                // Show modal
+                document.getElementById('challengeModal').style.display = 'block';
+                currentStep = 1;
+                showStep(1);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error loading challenge: ' + error.message, 'error');
+            }
+        }
+
+        // Update the saveHints function to handle hint updates
+        async function saveHints() {
+            const challengeId = document.querySelector('input[name="challenge_id"]')?.value;
+            if (!challengeId) return true;
+
+            try {
+                const hintItem = document.querySelector('.hint-item');
+                if (!hintItem) return true; // No hint to save
+
+                const hintText = hintItem.querySelector('.hint-text').value.trim();
+                const hintCost = parseInt(hintItem.querySelector('.hint-cost').value) || 0;
+                const hintId = hintItem.querySelector('.hint-id')?.value;
+
+                const hints = [{
+                    id: hintId,
+                    text: hintText,
+                    cost: hintCost
+                }];
+
+                const response = await fetch(`/api/admin/challenges/${challengeId}/hints`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ hints })
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to save hint');
+                }
+
+                showToast('Hint saved successfully', 'success');
+                return true;
+            } catch (error) {
+                showToast('Error saving hint: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // Update removeHint function to handle hint deletion
+        async function removeHint(button) {
+            const hintItem = button.closest('.hint-item');
+            const hintId = hintItem.querySelector('.hint-id')?.value;
+            const challengeId = document.querySelector('input[name="challenge_id"]')?.value;
+
+            if (hintId && challengeId) {
+                try {
+                    const response = await fetch(`/api/admin/challenges/${challengeId}/hints/${hintId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.message || 'Failed to delete hint');
+                    }
+                    
+                    hintItem.remove();
+                    showToast('Hint deleted successfully', 'success');
+                    
+                    // Show add hint button again
+                    const addHintBtn = document.querySelector('.add-hint-btn');
+                    if (addHintBtn) {
+                        addHintBtn.style.display = 'block';
+                    }
+                } catch (error) {
+                    showToast('Error deleting hint: ' + error.message, 'error');
+                }
+            } else {
+                // For new hints that aren't saved yet
+                hintItem.remove();
+                const addHintBtn = document.querySelector('.add-hint-btn');
+                if (addHintBtn) {
+                    addHintBtn.style.display = 'block';
+                }
+            }
+        }
+
+        function validateCurrentStep() {
+            const requiredFields = {
+                1: [
+                    { id: 'challengeName', label: 'Challenge Name', minLength: 3 },
+                    { id: 'description', label: 'Description', minLength: 10 },
+                    { id: 'points', label: 'Points', min: 100 },
+                    { id: 'category', label: 'Category' },
+                    { id: 'difficulty', label: 'Difficulty' },
+                    { id: 'flag', label: 'Flag', minLength: 5 },
+                    { id: 'challengeType', label: 'Challenge Type' }
+                ]
+            };
+
+            if (currentStep in requiredFields) {
+                for (const field of requiredFields[currentStep]) {
+                    const element = document.getElementById(field.id);
+                    const value = element.value.trim();
+
+                    if (!value) {
+                        showToast(`${field.label} is required`, 'error');
+                        element.focus();
+                        return false;
+                    }
+
+                    if (field.minLength && value.length < field.minLength) {
+                        showToast(`${field.label} must be at least ${field.minLength} characters`, 'error');
+                        element.focus();
+                        return false;
+                    }
+
+                    if (field.min && parseInt(value) < field.min) {
+                        showToast(`${field.label} must be at least ${field.min}`, 'error');
+                        element.focus();
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        function showLoading() {
+            document.querySelector('.loading-overlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.querySelector('.loading-overlay').style.display = 'none';
+        }
+
+        async function saveFiles() {
+            const challengeId = document.querySelector('input[name="challenge_id"]')?.value;
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!fileInput.files.length) return true;
+
+            try {
+                showLoading();
+                const formData = new FormData();
+                
+                // Add each file to formData with sanitized filename
+                Array.from(fileInput.files).forEach(file => {
+                    // Create safe filename
+                    const safeFileName = file.name.replace(/\s+/g, '_');
+                    formData.append('files[]', file, safeFileName); // Use third parameter to set filename
+                });
+
+                const response = await fetch(`/api/admin/challenges/${challengeId}/files`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to upload files');
+                }
+
+                showToast('Files uploaded successfully', 'success');
+                
+                // Refresh the files list
+                if (result.files && result.files.length > 0) {
+                    const existingFiles = document.getElementById('existingFiles');
+                    existingFiles.innerHTML = ''; // Clear existing files
+                    
+                    result.files.forEach(file => {
+                        const fileDiv = document.createElement('div');
+                        fileDiv.className = 'file-item';
+                        fileDiv.innerHTML = `
+                            <span class="file-name">
+                                <i class="fas fa-file"></i> ${file.filename}
+                                <small class="file-path">${file.filepath}</small>
+                            </span>
+                            <div class="file-actions">
+                                <button class="file-action-btn" onclick="downloadFile(${challengeId}, ${file.id})">
+                                    <i class="fas fa-download" title="Download File"></i>
+                                </button>
+                                <button class="file-action-btn" onclick="deleteFile(${challengeId}, ${file.id})">
+                                    <i class="fas fa-trash" title="Delete File"></i>
+                                </button>
+                            </div>
+                        `;
+                        existingFiles.appendChild(fileDiv);
+                    });
+                }
+                
+                // Clear file input and uploaded files display
+                fileInput.value = '';
+                document.getElementById('uploadedFiles').innerHTML = '';
+                
+                return true;
+            } catch (error) {
+                showToast('Error uploading files: ' + error.message, 'error');
+                return false;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateButtonText() {
+            const isEdit = document.querySelector('input[name="challenge_id"]') !== null;
+            const finalSubmitBtn = document.getElementById('finalSubmitBtn');
+            if (finalSubmitBtn) {
+                finalSubmitBtn.textContent = isEdit ? 'Save Changes' : 'Create Challenge';
+            }
+        }
+
+        function formatText(type) {
+            const textarea = document.getElementById('description');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            
+            let formattedText = '';
+            switch(type) {
+                case 'bold':
+                    formattedText = `<b>${selectedText}</b>`;
+                    break;
+                case 'italic':
+                    formattedText = `<i>${selectedText}</i>`;
+                    break;
+                case 'bolditalic':
+                    formattedText = `<b><i>${selectedText}</i></b>`;
+                    break;
+                case 'strike':
+                    formattedText = `<s>${selectedText}</s>`;
+                    break;
+                case 'code':
+                    formattedText = `<code>${selectedText}</code>`;
+                    break;
+            }
+            
+            textarea.value = textarea.value.substring(0, start) + 
+                            formattedText + 
+                            textarea.value.substring(end);
+            
+            // Restore focus and selection
+            textarea.focus();
+            textarea.setSelectionRange(start, start + formattedText.length);
+        }
+
+        function previewDescription() {
+            const textarea = document.getElementById('description');
+            const preview = document.getElementById('descriptionPreview');
+            const isPreviewVisible = preview.style.display !== 'none';
+            
+            if (isPreviewVisible) {
+                preview.style.display = 'none';
+                textarea.style.display = 'block';
+            } else {
+                // No need for replacements since we're using proper HTML tags
+                preview.innerHTML = textarea.value;
+                preview.style.display = 'block';
+                textarea.style.display = 'none';
+            }
+        }
+
+        // Add context menu for text formatting
+        document.getElementById('description').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            
+            // Remove existing context menu
+            const existingMenu = document.querySelector('.context-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+            
+            // Create context menu
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.innerHTML = `
+                <div onclick="formatText('bold')">Bold</div>
+                <div onclick="formatText('italic')">Italic</div>
+                <div onclick="formatText('bolditalic')">Bold Italic</div>
+                <div onclick="formatText('strike')">Strikethrough</div>
+                <div onclick="formatText('code')">Code</div>
+            `;
+            
+            // Position menu
+            menu.style.position = 'fixed';
+            menu.style.left = e.clientX + 'px';
+            menu.style.top = e.clientY + 'px';
+            
+            document.body.appendChild(menu);
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', function closeMenu() {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            });
+        });
+    </script>
+
+    <style>
+        .context-menu {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            padding: 0.5rem 0;
+            z-index: 1000;
+        }
+
+        .context-menu div {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #fff;
+        }
+
+        .context-menu div:hover {
+            background: rgba(255, 0, 76, 0.2);
+        }
+    </style>
+</body>
+</html> 
