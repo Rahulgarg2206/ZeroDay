@@ -2169,6 +2169,337 @@ def get_challenge_details(challenge_id):
         conn.close()
 
 # Add this route for purchasing/viewing hints
+@app.route('/api/hints/<int:hint_id>/unlock', methods=['POST'])
+@login_required
+def unlock_hint(hint_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Fetch current user's team_id (if any)
+        c.execute("SELECT team_id FROM users WHERE id = ?", (session['user_id'],))
+        row = c.fetchone()
+        team_id = row[0] if row else None
+
+        # Check if hint exists and get details
+        c.execute('''
+            SELECT h.id, h.hint_text, h.cost, h.challenge_id,
+                   c.title as challenge_title
+            FROM hints h
+            JOIN challenges c ON h.challenge_id = c.id
+            WHERE h.id = ?
+        ''', (hint_id,))
+        hint = c.fetchone()
+        
+        if not hint:
+            return jsonify({
+                'success': False,
+                'message': 'Hint not found'
+            }), 404
+
+        hint_id, hint_text, hint_cost, challenge_id, challenge_title = hint
+
+        if team_id:
+            # Check if any team member has already unlocked the hint
+            c.execute('''
+                SELECT 1 FROM unlocked_hints uh
+                JOIN users u ON uh.user_id = u.id
+                WHERE uh.hint_id = ? AND u.team_id = ?
+                LIMIT 1
+            ''', (hint_id, team_id))
+            if c.fetchone():
+                return jsonify({
+                    'success': True,
+                    'message': 'Hint already unlocked for your team',
+                    'hint': hint_text
+                })
+            
+            # For paid hints: Check team points
+            if hint_cost > 0:
+                # Get current team points directly from teams table
+                c.execute('SELECT points FROM teams WHERE id = ?', (team_id,))
+                team_points = c.fetchone()[0] or 0
+
+                if team_points < hint_cost:
+                    return jsonify({
+                        'success': False,
+                        'message': f'Not enough team points. Required: {hint_cost}, Available: {team_points}'
+                    }), 400
+
+                # Get team leader for point deduction
+                c.execute('''
+                    SELECT id FROM users 
+                    WHERE team_id = ? AND is_leader = 1 
+                    LIMIT 1
+                ''', (team_id,))
+                leader = c.fetchone()
+                transaction_user = leader[0] if leader else session['user_id']
+                
+                # Record point transaction
+                c.execute('''
+                    INSERT INTO point_transactions 
+                    (user_id, team_id, points, transaction_type, description)
+                    VALUES (?, ?, ?, 'team_hint_unlock', ?)
+                ''', (transaction_user, team_id, -hint_cost, 
+                      f'Team unlocked hint for challenge: {challenge_title}'))
+
+                # Update team points in teams table
+                c.execute('''
+                    UPDATE teams 
+                    SET points = points - ? 
+                    WHERE id = ?
+                ''', (hint_cost, team_id))
+
+            # Unlock hint for all team members
+            c.execute("SELECT id FROM users WHERE team_id = ?", (team_id,))
+            team_members = c.fetchall()
+            for member in team_members:
+                c.execute('''
+                    INSERT OR IGNORE INTO unlocked_hints 
+                    (user_id, hint_id, challenge_id) 
+                    VALUES (?, ?, ?)
+                ''', (member[0], hint_id, challenge_id))
+
+        else:
+            # Individual user logic
+            c.execute('''
+                SELECT 1 FROM unlocked_hints
+                WHERE hint_id = ? AND user_id = ?
+                LIMIT 1
+            ''', (hint_id, session['user_id']))
+            if c.fetchone():
+                return jsonify({
+                    'success': True,
+                    'message': 'Hint already unlocked',
+                    'hint': hint_text
+                })
+
+            if hint_cost > 0:
+                # Calculate individual points
+                c.execute('''
+                    SELECT COALESCE(
+                        (SELECT SUM(points_awarded) FROM solved_challenges WHERE user_id = ?)
+                        + COALESCE((
+                            SELECT SUM(points) 
+                            FROM point_transactions 
+                            WHERE user_id = ?
+                        ), 0)
+                    , 0) as total_points
+                ''', (session['user_id'], session['user_id']))
+                available_points = c.fetchone()[0]
+
+                if available_points < hint_cost:
+                    return jsonify({
+                        'success': False,
+                        'message': f'Not enough points. Required: {hint_cost}, Available: {available_points}'
+                    }), 400
+
+                # Record point transaction
+                c.execute('''
+                    INSERT INTO point_transactions 
+                    (user_id, points, transaction_type, description)
+                    VALUES (?, ?, 'hint_unlock', ?)
+                ''', (session['user_id'], -hint_cost, 
+                      f'Unlocked hint for challenge: {challenge_title}'))
+
+            # Insert unlocked hint record
+            c.execute('''
+                INSERT INTO unlocked_hints 
+                (user_id, hint_id, challenge_id)
+                VALUES (?, ?, ?)
+            ''', (session['user_id'], hint_id, challenge_id))
+            
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Hint unlocked successfully' + (f' (-{hint_cost} points)' if hint_cost > 0 else ''),
+            'hint': hint_text
+        })
+
+    except Exception as e:
+        conn.rollback()
+        logging.error(f"Error unlocking hint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Error unlocking hint'
+        }), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/challenges/<int:challenge_id>/hints', methods=['PUT'])
+@login_required
+def update_hints(challenge_id):
+    try:
+        if not request.is_json:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid request format. JSON required.'
+            }), 400
+
+        data = request.get_json()
+        if not isinstance(data, dict) or 'hints' not in data:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid request data. Hints array required.'
+            }), 400
+
+        hints = data.get('hints', [])
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # First check if challenge exists
+            c.execute('SELECT id FROM challenges WHERE id = ?', (challenge_id,))
+            if not c.fetchone():
+                return jsonify({
+                    'success': False,
+                    'message': 'Challenge not found'
+                }), 404
+
+            # Start transaction
+            c.execute('BEGIN TRANSACTION')
+            
+            # Delete existing hints
+            c.execute('DELETE FROM hints WHERE challenge_id = ?', (challenge_id,))
+            
+            # Insert new hints
+            for hint in hints:
+                if not isinstance(hint, dict) or 'text' not in hint or 'cost' not in hint:
+                    raise ValueError('Invalid hint format')
+                
+                c.execute('''
+                    INSERT INTO hints (challenge_id, hint_text, content, cost)
+                    VALUES (?, ?, ?, ?)
+                ''', (challenge_id, hint['text'], hint['text'], int(hint['cost'])))
+            
+            # Commit transaction
+            c.execute('COMMIT')
+            
+            return jsonify({
+                'success': True,
+                'message': 'Hints updated successfully'
+            })
+            
+        except ValueError as ve:
+            c.execute('ROLLBACK')
+            return jsonify({
+                'success': False,
+                'message': str(ve)
+            }), 400
+            
+        except sqlite3.Error as e:
+            c.execute('ROLLBACK')
+            return jsonify({
+                'success': False,
+                'message': f'Database error: {str(e)}'
+            }), 500
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+@app.route('/api/admin/challenges/<int:challenge_id>/hints/<int:hint_id>', methods=['DELETE'])
+@login_required
+def delete_hint(challenge_id, hint_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Verify the hint belongs to the challenge
+        c.execute('''SELECT id FROM hints 
+                    WHERE id = ? AND challenge_id = ?''', 
+                 (hint_id, challenge_id))
+        
+        if not c.fetchone():
+            return jsonify({
+                'success': False,
+                'message': 'Hint not found'
+            }), 404
+        
+        # Delete the hint
+        c.execute('DELETE FROM hints WHERE id = ?', (hint_id,))
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Hint deleted successfully'
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+    finally:
+        conn.close()
+
+@app.route('/api/hints/<int:hint_id>/view', methods=['GET'])
+@login_required
+def view_hint(hint_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    try:
+        # Fetch current user's team_id (if any)
+        c.execute("SELECT team_id FROM users WHERE id = ?", (session['user_id'],))
+        row = c.fetchone()
+        team_id = row[0] if row else None
+
+        if team_id:
+            c.execute('''
+                SELECT h.hint_text, h.cost,
+                EXISTS(
+                    SELECT 1 FROM unlocked_hints uh
+                    JOIN users u ON uh.user_id = u.id
+                    WHERE uh.hint_id = h.id AND u.team_id = ?
+                ) as is_unlocked
+                FROM hints h
+                WHERE h.id = ?
+            ''', (team_id, hint_id))
+        else:
+            c.execute('''
+                SELECT h.hint_text, h.cost,
+                EXISTS(
+                    SELECT 1 FROM unlocked_hints uh
+                    WHERE uh.hint_id = h.id AND uh.user_id = ?
+                ) as is_unlocked
+                FROM hints h
+                WHERE h.id = ?
+            ''', (session['user_id'], hint_id))
+        hint = c.fetchone()
+        if not hint:
+            return jsonify({
+                'success': False,
+                'message': 'Hint not found'
+            }), 404
+
+        # If the hint is free or already unlocked then show it
+        if hint[1] == 0 or hint[2]:
+            return jsonify({
+                'success': True,
+                'hint': hint[0]
+            })
+
+        return jsonify({
+            'success': False,
+            'message': 'Hint not unlocked'
+        }), 403
+    except Exception as e:
+        logging.error(f"Error viewing hint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Error viewing hint'
+        }), 500
+    finally:
+        conn.close()
+
+# Add team size validation helper
 
 if __name__ == '__main__':
     try:
