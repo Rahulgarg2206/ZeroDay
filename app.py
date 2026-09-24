@@ -2500,6 +2500,376 @@ def view_hint(hint_id):
         conn.close()
 
 # Add team size validation helper
+def validate_team_size(team_id):
+    """Validate team size against configured limits"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    try:
+        c.execute('SELECT COUNT(*) FROM users WHERE team_id = ?', (team_id,))
+        current_size = c.fetchone()[0]
+        max_size = int(get_setting('max_team_size', '4'))
+        return current_size < max_size
+    finally:
+        conn.close()
+
+# Update team request handling
+@app.route('/api/team/requests/<int:request_id>/<string:action>', methods=['POST'])
+@login_required
+def handle_team_request(request_id, action):
+    if action not in ['accept', 'reject']:
+        return jsonify({'success': False, 'message': 'Invalid action'})
+        
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Verify user is team leader
+        c.execute('''SELECT t.id FROM users u 
+                    JOIN teams t ON u.team_id = t.id
+                    WHERE u.id = ? AND u.is_leader = 1''', 
+                 (session['user_id'],))
+        team = c.fetchone()
+        
+        if not team:
+            return jsonify({'success': False, 'message': 'Unauthorized'})
+            
+        # Get request info first
+        c.execute('''SELECT user_id, team_id, status FROM team_requests 
+                    WHERE id = ?''', (request_id,))
+        request = c.fetchone()
+        
+        if not request:
+            return jsonify({'success': False, 'message': 'Request not found'})
+            
+        if request[2] != 'pending':
+            return jsonify({'success': False, 'message': 'Request already processed'})
+            
+        if action == 'accept':
+            # Validate team size
+            if not validate_team_size(request[1]):
+                c.execute('UPDATE team_requests SET status = "rejected" WHERE id = ?',
+                         (request_id,))
+                conn.commit()
+                return jsonify({
+                    'success': False, 
+                    'message': f'Team has reached maximum size'
+                })
+                
+            # Update user's team
+            c.execute('''UPDATE users 
+                        SET team_id = ?, team_code = (SELECT team_code FROM teams WHERE id = ?)
+                        WHERE id = ?''',
+                     (request[1], request[1], request[0]))
+                     
+        # Update request status
+        c.execute('UPDATE team_requests SET status = ? WHERE id = ?',
+                 (action, request_id))
+            
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Request {action}ed successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+    finally:
+        conn.close()
+
+# Add new route to handle team ban status
+@app.route('/api/admin/teams/<int:team_id>/toggle-ban', methods=['POST'])
+@login_required
+def toggle_team_ban(team_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get the desired ban status from request
+        data = request.get_json()
+        new_status = bool(data.get('is_banned', False))
+        
+        # Update the team's ban status
+        c.execute('UPDATE teams SET is_banned = ? WHERE id = ?', 
+                 (new_status, team_id))
+        
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Team {"banned" if new_status else "unbanned"} successfully'
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+    finally:
+        conn.close()
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Check if user exists and get their team info
+        c.execute('''
+            SELECT u.id, u.is_leader, u.team_id 
+            FROM users u 
+            WHERE u.id = ?
+        ''', (user_id,))
+        user = c.fetchone()
+        
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+            
+        user_id, is_leader, team_id = user
+            
+        # Handle team leader case
+        if is_leader and team_id:
+            # Check for other team members
+            c.execute('''
+                SELECT id, username 
+                FROM users 
+                WHERE team_id = ? AND id != ? 
+                ORDER BY id ASC
+                LIMIT 1
+            ''', (team_id, user_id))
+            other_member = c.fetchone()
+            
+            if other_member:
+                # Transfer leadership to another member
+                c.execute('''
+                    UPDATE users 
+                    SET is_leader = 1 
+                    WHERE id = ?
+                ''', (other_member[0],))
+                
+                # Remove leadership from current user
+                c.execute('''
+                    UPDATE users 
+                    SET is_leader = 0 
+                    WHERE id = ?
+                ''', (user_id,))
+            else:
+                # No other members, delete the team
+                c.execute('DELETE FROM teams WHERE id = ?', (team_id,))
+                
+        # Delete user's records from related tables
+        c.execute('DELETE FROM solved_challenges WHERE user_id = ?', (user_id,))
+        c.execute('DELETE FROM unlocked_hints WHERE user_id = ?', (user_id,))
+        c.execute('DELETE FROM point_transactions WHERE user_id = ?', (user_id,))
+        c.execute('DELETE FROM team_requests WHERE user_id = ?', (user_id,))
+        c.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': 'User deleted successfully'
+        })
+        
+    except sqlite3.Error as e:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Database error: {str(e)}'
+        }), 500
+    finally:
+        conn.close()
+
+# Add this new route
+@app.route('/api/teams/leaderboard')
+def get_team_leaderboard():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        c.execute('''
+            SELECT 
+                t.id,
+                t.name,
+                COUNT(DISTINCT u.id) as member_count,
+                COUNT(DISTINCT sc.challenge_id) as solved_challenges,
+                t.points as total_points,
+                GROUP_CONCAT(DISTINCT c.category) as categories
+            FROM teams t
+            LEFT JOIN users u ON t.id = u.team_id
+            LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+            LEFT JOIN challenges c ON sc.challenge_id = c.id
+            WHERE t.is_banned = 0
+            GROUP BY t.id
+            ORDER BY t.points DESC, solved_challenges DESC
+        ''')
+        
+        teams = [{
+            'id': row[0],
+            'name': row[1],
+            'member_count': row[2],
+            'solved_challenges': row[3],
+            'total_points': row[4],
+            'categories': row[5].split(',') if row[5] else []
+        } for row in c.fetchall()]
+        
+        return jsonify(teams)
+        
+    finally:
+        conn.close()
+
+@app.route('/api/teams/leaderboard/stream')
+def stream_leaderboard():
+    def generate():
+        last_update = 0
+        while True:
+            # Check for updates every 5 seconds
+            current_time = time.time()
+            if current_time - last_update >= 5:
+                conn = sqlite3.connect(DATABASE_PATH)
+                c = conn.cursor()
+                
+                try:
+                    c.execute('''
+                        SELECT 
+                            t.id,
+                            t.name,
+                            COUNT(DISTINCT u.id) as member_count,
+                            COUNT(DISTINCT sc.challenge_id) as solved_challenges,
+                            COALESCE(SUM(sc.points_awarded), 0) as total_points
+                        FROM teams t
+                        LEFT JOIN users u ON t.id = u.team_id
+                        LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+                        WHERE t.is_banned = 0
+                        GROUP BY t.id
+                        ORDER BY total_points DESC, solved_challenges DESC
+                    ''')
+                    
+                    teams = [{
+                        'id': row[0],
+                        'name': row[1],
+                        'member_count': row[2],
+                        'solved_challenges': row[3],
+                        'total_points': row[4]
+                    } for row in c.fetchall()]
+                    
+                    yield f"data: {json.dumps(teams)}\n\n"
+                    last_update = current_time
+                finally:
+                    conn.close()
+            
+            time.sleep(1)
+    
+    return Response(generate(), mimetype='text/event-stream')
+
+
+@app.route('/api/notifications')
+@login_required
+def get_notifications():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        c.execute('''SELECT id, title, message, created_at, is_read
+                     FROM notifications
+                     WHERE user_id IS NULL 
+                     AND (team_id IS NULL OR team_id = (SELECT team_id FROM users WHERE id = ?))
+                     ORDER BY created_at DESC''',
+                  (session['user_id'],))
+        
+        notifications = [{
+            'id': row[0],
+            'title': row[1],
+            'message': row[2],
+            'created_at': row[3],
+            'unread': not row[4]
+        } for row in c.fetchall()]
+        
+        return jsonify(notifications)
+    finally:
+        conn.close()
+
+@app.route('/api/notifications/unread-count')
+@login_required
+def get_unread_count():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        c.execute('''SELECT COUNT(*) FROM notifications
+                     WHERE is_read = 0
+                     AND user_id IS NULL 
+                     AND (team_id IS NULL OR team_id = (SELECT team_id FROM users WHERE id = ?))''',
+                  (session['user_id'],))
+        
+        count = c.fetchone()[0]
+        return jsonify({'count': count})
+    finally:
+        conn.close()
+
+@app.route('/notifications')
+@login_required
+def notifications():
+    return render_template('client/notifications.html', active_page='notifications')
+
+@app.route('/api/notifications/mark-read', methods=['POST'])
+@login_required
+def mark_notifications_read():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        c.execute('''UPDATE notifications 
+                     SET is_read = 1
+                     WHERE user_id IS NULL 
+                     AND (team_id IS NULL OR team_id = (SELECT team_id FROM users WHERE id = ?))
+                     AND is_read = 0''',
+                  (session['user_id'],))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+    finally:
+        conn.close()
+
+# Add a new route to handle CTF timing updates
+@app.route('/api/admin/settings/timing', methods=['GET'])
+@login_required
+def get_ctf_timing():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    try:
+        c.execute('''SELECT start_time, end_time 
+                    FROM setting_date_time 
+                    ORDER BY id DESC LIMIT 1''')
+        result = c.fetchone()
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'start_time': result[0],
+                'end_time': result[1]
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No CTF timing found'
+            })
+    finally:
+        conn.close()
+
+# Initialize SocketIO with updated config
+socketio = SocketIO(
+    app,
+    async_mode='eventlet',
+    cors_allowed_origins='*',
+    logger=True,
+    engineio_logger=True,
+    ping_timeout=60,
+    ping_interval=25,
+    message_queue=None  # Use in-memory queue
+)
+
+# Update background task function
 
 if __name__ == '__main__':
     try:
