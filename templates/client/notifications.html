@@ -1,0 +1,150 @@
+{% extends "client/layout.html" %}
+
+{% block title %}Notifications - Zero Day Arena{% endblock %}
+
+{% block content %}
+<div class="notifications-container">
+    <h2 class="page-title">Notifications</h2>
+    <div id="notifications-list">
+        <!-- Notifications will be loaded here -->
+    </div>
+</div>
+
+<!-- Added audio element for notification sound -->
+<audio id="notificationSound" src="/static/sounds/notification.mp3" preload="auto"></audio>
+
+<style>
+    .notifications-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .notifications-container {
+            padding: 1rem;
+        }
+        .notification-title {
+            font-size: 1.2rem;
+        }
+        .notification-message {
+            font-size: 0.95rem;
+        }
+        .notification-time {
+            font-size: 0.8rem;
+        }
+    }
+
+    .page-title {
+        font-family: 'Orbitron', sans-serif;
+        color: #00ff88;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .notification-item {
+        background: linear-gradient(135deg, rgba(0, 255, 136, 0.05) 0%, rgba(0, 255, 136, 0.1) 100%);
+        border: 2px solid rgba(0, 255, 136, 0.2);
+        border-left-width: 6px;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        animation: fadeIn 0.5s ease-in;
+        position: relative;
+        width: 51rem;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .notification-item:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .notification-title {
+        font-size: 1.4rem;
+        color: #00ff88;
+        margin-bottom: 0.5rem;
+    }
+
+    .notification-message {
+        font-size: 1rem;
+        color: #f0f0f0;
+        margin-bottom: 0.5rem;
+    }
+
+    .notification-time {
+        color: #aaa;
+        font-size: 0.85rem;
+    }
+
+    .notification-unread {
+        border-left-color: #00ff88;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<script>
+    const notificationsList = document.getElementById('notifications-list');
+    const notificationSound = document.getElementById('notificationSound');
+
+    function loadNotifications() {
+        fetch('/api/notifications')
+            .then(response => response.json())
+            .then(notifications => {
+                notificationsList.innerHTML = notifications.map(notification => `
+                    <div class="notification-item ${notification.unread ? 'notification-unread' : ''}" 
+                         data-id="${notification.id}">
+                        <div class="notification-title">${notification.title}</div>
+                        <div class="notification-message">${notification.message}</div>
+                        <div class="notification-time">${notification.created_at}</div>
+                    </div>
+                `).join('');
+            });
+        
+        // Mark notifications as read when page is loaded
+        fetch('/api/notifications/mark-read', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(() => {
+            // Update badge count in sidebar
+            updateNotificationBadge();
+        });
+    }
+
+    // WebSocket connection for real-time notifications
+    const socket = io();
+    socket.on('new_notification', (notification) => {
+        // Add new notification to the list with a close button
+        const element = document.createElement('div');
+        element.className = 'notification-item notification-unread';
+        element.dataset.id = notification.id;
+        element.innerHTML = `
+            <div class="notification-title">${notification.title}</div>
+            <div class="notification-message">${notification.message}</div>
+            <div class="notification-time">Just now</div>
+        `;
+        notificationsList.insertBefore(element, notificationsList.firstChild);
+
+        // Play sound if specified
+        if (notification.playSound) {
+            notificationSound.play().catch(e => console.log('Error playing sound:', e));
+        }
+
+        // Update badge count
+        updateNotificationBadge();
+    });
+
+    // Load initial notifications
+    loadNotifications();
+</script>
+{% endblock %}

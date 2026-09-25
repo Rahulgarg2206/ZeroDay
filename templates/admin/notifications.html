@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - Zero Day Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Include base styles and admin sidebar styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        /* Admin sidebar styles */
+        .admin-sidebar {
+            width: 240px;
+            background: rgba(255, 0, 76, 0.05);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 0, 76, 0.2);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        /* Position logout at bottom of sidebar */
+        .nav-links {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logout {
+            margin-top: auto;
+        }
+
+        .admin-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            color: #b3b3cc;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 0, 76, 0.1);
+            color: #ff004c;
+        }
+
+        .nav-item.active {
+            background: rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+        }
+
+        .nav-item i {
+            margin-right: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        /* Notifications specific styles */
+        .notifications-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-family: 'Orbitron', sans-serif;
+            color: #ff004c;
+            font-size: 2rem;
+        }
+
+        .clear-all-btn {
+            padding: 0.8rem 1.5rem;
+            background: rgba(255, 0, 76, 0.1);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            color: #ff004c;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-all-btn:hover {
+            background: rgba(255, 0, 76, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .date-group {
+            margin-bottom: 2rem;
+        }
+
+        .date-header {
+            font-family: 'Orbitron', sans-serif;
+            color: #b3b3cc;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 0, 76, 0.2);
+        }
+
+        .notification-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .notification-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 0, 76, 0.05);
+        }
+
+        .notification-content {
+            flex-grow: 1;
+        }
+
+        .notification-title {
+            color: #ff004c;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-description {
+            color: #b3b3cc;
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .mark-read-btn {
+            background: none;
+            border: none;
+            color: #ff004c;
+            cursor: pointer;
+            padding: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .mark-read-btn:hover {
+            color: #ff8f00;
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                width: 60px;
+            }
+
+            .admin-logo, .admin-nav-item span {
+                display: none;
+            }
+
+            .admin-nav-item i {
+                margin-right: 0;
+            }
+
+            .admin-nav-item {
+                padding: 1rem;
+                justify-content: center;
+            }
+
+            .main-content {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+                padding: 1rem;
+            }
+
+            .notifications-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Update these styles in the <style> section */
+        .notification-form {
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 600px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .notification-form-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+        }
+
+        .notification-form-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            border-radius: 3px;
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.8rem;
+            color: #ff004c;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: #ff004c;
+            box-shadow: 0 0 15px rgba(255, 0, 76, 0.2);
+            outline: none;
+        }
+
+        .form-textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .send-btn {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(45deg, #ff004c, #ff8f00);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .send-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            transition: 0.5s;
+        }
+
+        .send-btn:hover::before {
+            left: 100%;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(255, 0, 76, 0.3);
+        }
+
+        .send-btn i {
+            font-size: 1.2rem;
+        }
+
+        .notification-filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            color: #b3b3cc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+        }
+
+        .notification-target {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .target-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+
+        .target-option input[type="radio"] {
+            display: none;
+        }
+
+        .target-option span {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .target-option input[type="radio"]:checked + span {
+            background: rgba(255, 0, 76, 0.2);
+            color: #ff004c;
+        }
+
+        /* Add these styles */
+        .target-group {
+            position: relative;
+        }
+
+        .search-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            margin-top: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .search-dropdown.show {
+            display: block;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            margin-top: 0.5rem;
+        }
+
+        .dropdown-item {
+            padding: 0.8rem 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(255, 0, 76, 0.1);
+        }
+
+        .dropdown-item i {
+            color: #ff004c;
+            width: 20px;
+            text-align: center;
+        }
+
+        .selected-target {
+            margin-top: 0.5rem;
+            padding: 0.8rem;
+            background: rgba(255, 0, 76, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .selected-target i.remove-target {
+            cursor: pointer;
+            color: #ff004c;
+            transition: all 0.3s ease;
+        }
+
+        .selected-target i.remove-target:hover {
+            transform: scale(1.1);
+        }
+
+        /* Update these styles for better target visibility */
+        .form-select {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 2px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ff004c' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.762L10.825 4z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        .form-select option {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 1rem;
+            font-size: 1rem;
+        }
+
+        .search-container {
+            margin-top: 1rem;
+            background: rgba(255, 0, 76, 0.05);
+            border: 1px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+            margin-top: 0;
+        }
+
+        .search-dropdown {
+            margin-top: 0.5rem;
+            background: #1a1a2e;
+            border: 2px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .dropdown-item {
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid rgba(255, 0, 76, 0.1);
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(255, 0, 76, 0.1);
+            transform: translateX(5px);
+        }
+
+        .dropdown-item i {
+            color: #ff004c;
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .selected-target {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(255, 0, 76, 0.1);
+            border: 2px solid rgba(255, 0, 76, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1rem;
+        }
+
+        .selected-target i:not(.remove-target) {
+            color: #ff004c;
+            margin-right: 0.5rem;
+        }
+
+        .selected-target i.remove-target {
+            cursor: pointer;
+            color: #ff004c;
+            transition: all 0.3s ease;
+            padding: 0.5rem;
+            border-radius: 50%;
+            background: rgba(255, 0, 76, 0.1);
+        }
+
+        .selected-target i.remove-target:hover {
+            transform: scale(1.1);
+            background: rgba(255, 0, 76, 0.2);
+        }
+
+        /* Add a subtle scrollbar for dropdowns */
+        .search-dropdown::-webkit-scrollbar {
+            width: 6px;
+            display: block;
+        }
+
+        .search-dropdown::-webkit-scrollbar-track {
+            background: rgba(255, 0, 76, 0.05);
+            border-radius: 3px;
+        }
+
+        .search-dropdown::-webkit-scrollbar-thumb {
+            background: rgba(255, 0, 76, 0.2);
+            border-radius: 3px;
+        }
+
+        .search-dropdown::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 0, 76, 0.3);
+        }
+
+        /* Add these responsive styles to the notifications page */
+
+        @media (max-width: 768px) {
+            .notification-form {
+                margin: 1rem;
+                padding: 1.2rem;
+            }
+            
+            .notification-target {
+                flex-direction: column;
+            }
+            
+            .target-option {
+                width: 100%;
+            }
+            
+            .search-dropdown {
+                max-height: 150px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .notification-form {
+                margin: 0.8rem;
+                padding: 1.2rem;
+            }
+            
+            .notification-form-title {
+                font-size: 1.3rem;
+            }
+            
+            .form-input,
+            .form-textarea {
+                padding: 0.8rem;
+            }
+            
+            .send-btn {
+                padding: 0.8rem;
+                font-size: 0.9rem;
+            }
+            
+            .dropdown-item {
+                padding: 0.8rem;
+            }
+        }
+
+        /* Toast Notification Styles */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 1rem 1.5rem;
+            background: rgba(26, 26, 46, 0.9);
+            border-left: 4px solid #ff004c;
+            border-radius: 4px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast i {
+            color: #ff004c;
+            font-size: 1.2rem;
+        }
+
+        .toast-message {
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-sidebar">
+        <div class="admin-logo">ZDA ADMIN</div>
+        <div class="nav-links">
+            <a href="/admin" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/users" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="/admin/teams" class="nav-item">
+                <i class="fas fa-user-group"></i>
+                <span>Teams</span>
+            </a>
+            <a href="/admin/challenges" class="nav-item">
+                <i class="fas fa-flag"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="/admin/notifications" class="nav-item active">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </a>
+            <a href="/admin/settings" class="nav-item">
+                <i class="fas fa-gear"></i>
+                <span>Settings</span>
+            </a>
+            <a href="/logout" class="nav-item logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content">
+
+        <div class="notification-form">
+            <h2 class="notification-form-title">Send New Notification</h2>
+            <form id="notificationForm" onsubmit="sendNotification(event)">
+                <div class="form-group">
+                    <label class="form-label" for="notificationTitle">
+                        <i class="fas fa-heading"></i> Title
+                    </label>
+                    <input 
+                        type="text" 
+                        id="notificationTitle" 
+                        class="form-input" 
+                        required 
+                        placeholder="Enter notification title"
+                    >
+                </div>
+
+                <div class="form-group target-group">
+                    <label class="form-label" for="notificationTarget">
+                        <i class="fas fa-users"></i> Target
+                    </label>
+                    <select id="notificationTarget" class="form-select" required onchange="handleTargetChange(this.value)">
+                        <option value="all">All Users</option>
+                        <option value="team">Specific Team</option>
+                        <option value="user">Specific User</option>
+                    </select>
+
+                    <!-- Team Search -->
+                    <div id="teamSearch" class="search-container" style="display: none;">
+                        <input 
+                            type="text" 
+                            class="search-input" 
+                            placeholder="Search for team..."
+                            oninput="searchTeams(this.value)"
+                        >
+                        <div class="search-dropdown" id="teamDropdown">
+                            <!-- Teams will be added here -->
+                        </div>
+                        <div id="selectedTeam"></div>
+                    </div>
+
+                    <!-- User Search -->
+                    <div id="userSearch" class="search-container" style="display: none;">
+                        <input 
+                            type="text" 
+                            class="search-input" 
+                            placeholder="Search for user..."
+                            oninput="searchUsers(this.value)"
+                        >
+                        <div class="search-dropdown" id="userDropdown">
+                            <!-- Users will be added here -->
+                        </div>
+                        <div id="selectedUser"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="notificationMessage">
+                        <i class="fas fa-message"></i> Message
+                    </label>
+                    <textarea 
+                        id="notificationMessage" 
+                        class="form-textarea" 
+                        required 
+                        placeholder="Enter your message here..."
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="playSound" name="playSound">
+                        Play Sound on Client Side
+                    </label>
+                </div>
+
+                <button type="submit" class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Notification
+                </button>
+            </form>
+        </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span class="toast-message"></span>
+    </div>
+
+    <script>
+        function toggleTeamSelect() {
+            const target = document.getElementById('notificationTarget');
+            const teamGroup = document.getElementById('teamSelectGroup');
+            const teamSelect = document.getElementById('teamSelect');
+            
+            if (target.value === 'team') {
+                teamGroup.style.display = 'block';
+                teamSelect.required = true;
+            } else {
+                teamGroup.style.display = 'none';
+                teamSelect.required = false;
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = toast.querySelector('i');
+            const messageEl = toast.querySelector('.toast-message');
+
+            // Reset classes
+            toast.classList.remove('show');
+            icon.className = 'fas';
+
+            // Set type-specific properties
+            if (type === 'success') {
+                icon.classList.add('fa-check-circle');
+                toast.style.borderColor = '#ff004c';
+                icon.style.color = '#ff004c';
+            } else if (type === 'error') {
+                icon.classList.add('fa-exclamation-circle');
+                toast.style.borderColor = '#ff0000';
+                icon.style.color = '#ff0000';
+            }
+
+            messageEl.textContent = message;
+            toast.classList.add('show');
+
+            // Hide toast after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function sendNotification(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = {
+                title: form.notificationTitle.value,
+                message: form.notificationMessage.value,
+                target: form.notificationTarget.value,
+                playSound: form.playSound.checked
+            };
+
+            // Add target-specific data
+            if (data.target === 'team' && document.getElementById('selectedTeam').firstElementChild) {
+                data.teamId = document.getElementById('selectedTeam').firstElementChild.dataset.teamId;
+            } else if (data.target === 'user' && document.getElementById('selectedUser').firstElementChild) {
+                data.userId = document.getElementById('selectedUser').firstElementChild.dataset.userId;
+            }
+
+            fetch('/api/admin/notifications/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Notification sent successfully');
+                    form.reset();
+                    // Clear selected team/user if any
+                    clearSelection('team');
+                    clearSelection('user');
+                } else {
+                    showToast(data.message || 'Error sending notification', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error sending notification', 'error');
+            });
+        }
+
+        function createNotificationElement(data) {
+            const div = document.createElement('div');
+            div.className = 'activity-item';
+            div.innerHTML = `
+                <div class="activity-info">
+                    <div class="activity-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <div class="activity-text">
+                        <div class="notification-title">${data.title}</div>
+                        <div class="notification-description">${data.message}</div>
+                        <div class="notification-meta">
+                            <span class="notification-target">${data.target}</span>
+                            <span class="notification-time">${data.time}</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="action-btn delete-btn" onclick="deleteNotification(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            return div;
+        }
+
+        function deleteNotification(button) {
+            const toast = document.getElementById('toast');
+            const icon = toast.querySelector('i');
+            const messageEl = toast.querySelector('.toast-message');
+
+            toast.classList.remove('toast-success', 'toast-error', 'show');
+            icon.classList.remove('fa-check-circle', 'fa-exclamation-circle', 'fa-trash');
+
+            toast.classList.add('toast-error');
+            icon.classList.add('fa-trash');
+            messageEl.innerHTML = `
+                Delete this notification?
+                <div style="margin-top: 0.5rem;">
+                    <button onclick="confirmDelete(this)" data-notification="${button.closest('.activity-item').id}" 
+                        style="background: #ff004c; border: none; padding: 0.3rem 0.8rem; border-radius: 4px; color: #fff; margin-right: 0.5rem; cursor: pointer;">Yes</button>
+                    <button onclick="hideToast()" 
+                        style="background: #333; border: none; padding: 0.3rem 0.8rem; border-radius: 4px; color: #fff; cursor: pointer;">No</button>
+                </div>
+            `;
+            toast.classList.add('show');
+        }
+
+        function confirmDelete(button) {
+            const notificationElement = button.closest('.activity-item');
+            notificationElement.remove();
+            hideToast();
+            showToast('Notification deleted successfully');
+        }
+
+        function filterNotifications(type) {
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Add filter logic here
+            console.log('Filtering notifications:', type);
+        }
+
+        function handleTargetChange(value) {
+            const teamSearch = document.getElementById('teamSearch');
+            const userSearch = document.getElementById('userSearch');
+            
+            teamSearch.style.display = 'none';
+            userSearch.style.display = 'none';
+            
+            if (value === 'team') {
+                teamSearch.style.display = 'block';
+                teamSearch.querySelector('input').focus();
+            } else if (value === 'user') {
+                userSearch.style.display = 'block';
+                userSearch.querySelector('input').focus();
+            }
+        }
+
+        function searchTeams(query) {
+            if (!query.trim()) {
+                document.getElementById('teamDropdown').classList.remove('show');
+                return;
+            }
+
+            fetch(`/api/admin/teams/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(teams => {
+                    const dropdown = document.getElementById('teamDropdown');
+                    dropdown.innerHTML = '';
+
+                    teams.forEach(team => {
+                        const div = document.createElement('div');
+                        div.className = 'dropdown-item';
+                        div.innerHTML = `
+                            <i class="fas fa-user-group"></i>
+                            <span>${team.name} (${team.member_count} members)</span>
+                        `;
+                        div.onclick = () => selectTeam(team);
+                        dropdown.appendChild(div);
+                    });
+
+                    dropdown.classList.toggle('show', teams.length > 0);
+                })
+                .catch(error => {
+                    console.error('Error searching teams:', error);
+                });
+        }
+
+        function searchUsers(query) {
+            if (!query.trim()) {
+                document.getElementById('userDropdown').classList.remove('show');
+                return;
+            }
+
+            fetch(`/api/admin/users/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(users => {
+                    const dropdown = document.getElementById('userDropdown');
+                    dropdown.innerHTML = '';
+
+                    users.forEach(user => {
+                        const div = document.createElement('div');
+                        div.className = 'dropdown-item';
+                        div.innerHTML = `
+                            <i class="fas fa-user"></i>
+                            <span>${user.username} ${user.team_name ? `(${user.team_name})` : ''}</span>
+                        `;
+                        div.onclick = () => selectUser(user);
+                        dropdown.appendChild(div);
+                    });
+
+                    dropdown.classList.toggle('show', users.length > 0);
+                })
+                .catch(error => {
+                    console.error('Error searching users:', error);
+                });
+        }
+
+        function selectTeam(team) {
+            const container = document.getElementById('selectedTeam');
+            container.innerHTML = `
+                <div class="selected-target" data-team-id="${team.id}">
+                    <span><i class="fas fa-user-group"></i> ${team.name}</span>
+                    <i class="fas fa-times remove-target" onclick="clearSelection('team')"></i>
+                </div>
+            `;
+            document.getElementById('teamDropdown').classList.remove('show');
+            document.querySelector('#teamSearch input').value = '';
+        }
+
+        function selectUser(user) {
+            const container = document.getElementById('selectedUser');
+            container.innerHTML = `
+                <div class="selected-target" data-user-id="${user.id}">
+                    <span><i class="fas fa-user"></i> ${user.username} ${user.team_name ? `(${user.team_name})` : ''}</span>
+                    <i class="fas fa-times remove-target" onclick="clearSelection('user')"></i>
+                </div>
+            `;
+            document.getElementById('userDropdown').classList.remove('show');
+            document.querySelector('#userSearch input').value = '';
+        }
+
+        function clearSelection(type) {
+            if (type === 'team') {
+                document.getElementById('selectedTeam').innerHTML = '';
+            } else {
+                document.getElementById('selectedUser').innerHTML = '';
+            }
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-container')) {
+                document.querySelectorAll('.search-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('show');
+                });
+            }
+        });
+    </script>
+
+   
+</body>
+</html>
