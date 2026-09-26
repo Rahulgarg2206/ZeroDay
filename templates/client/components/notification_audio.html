@@ -1,0 +1,59 @@
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // If not already defined, initialize the socket connection on a shared variable
+        if (!window.notificationSocket) {
+            window.notificationSocket = io();
+        }
+        
+        // Use an existing audio element if available; otherwise create one
+        let notificationSound = document.getElementById('notificationSound');
+        if (!notificationSound) {
+            // Create a new audio element with the correct source (using 'noti.mp3' from layout)
+            notificationSound = new Audio('/static/audio/noti.mp3');
+            notificationSound.id = 'notificationSound';
+            notificationSound.preload = 'auto';
+            document.body.appendChild(notificationSound);
+        } else {
+            // Ensure its source and preload settings are correct
+            notificationSound.src = '/static/audio/noti.mp3';
+            notificationSound.preload = 'auto';
+        }
+        
+        // A helper function to allow audio playback after user interaction
+        function enableAudio() {
+            // Ensure the sound is not muted and is at full volume
+            notificationSound.muted = false;
+            notificationSound.volume = 1.0;
+            notificationSound.load();
+            notificationSound.play().then(() => {
+                notificationSound.pause();
+                notificationSound.currentTime = 0;
+            }).catch((err) => { console.error("Audio play error:", err); });
+        }
+
+        // Listen for "new_notification" events on the shared socket
+        window.notificationSocket.on('new_notification', (data) => {
+            if (data.playSound) {
+                notificationSound.muted = false;
+                notificationSound.volume = 1.0;
+                notificationSound.currentTime = 0;
+                notificationSound.play().catch(() => {
+                    // If playback fails (due to autoplay restrictions), attach once a click and touchstart listener to enable it.
+                    document.addEventListener('click', enableAudio, { once: true });
+                    document.addEventListener('touchstart', enableAudio, { once: true });
+                });
+            }
+        });
+
+        // Enable audio on first user interaction (if not already enabled)
+        document.addEventListener('click', enableAudio, { once: true });
+        document.addEventListener('touchstart', enableAudio, { once: true });
+
+        // Clean up the socket on page unload
+        window.addEventListener('beforeunload', () => {
+            if (window.notificationSocket) {
+                window.notificationSocket.disconnect();
+            }
+        });
+    });
+</script>
