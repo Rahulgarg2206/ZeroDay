@@ -2870,6 +2870,392 @@ socketio = SocketIO(
 )
 
 # Update background task function
+def background_leaderboard_updates():
+    app.app_context().push()
+    last_data = None
+    
+    while True:
+        try:
+            with app.app_context():
+                conn = sqlite3.connect(DATABASE_PATH)
+                c = conn.cursor()
+                
+                try:
+                    c.execute('''
+                        SELECT 
+                            t.id,
+                            t.name,
+                            COUNT(DISTINCT u.id) as member_count,
+                            COUNT(DISTINCT sc.challenge_id) as solved_challenges,
+                            t.points as total_points,
+                            GROUP_CONCAT(DISTINCT c.category) as categories
+                        FROM teams t
+                        LEFT JOIN users u ON t.id = u.team_id
+                        LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+                        LEFT JOIN challenges c ON sc.challenge_id = c.id
+                        WHERE t.is_banned = 0
+                        GROUP BY t.id
+                        ORDER BY t.points DESC, solved_challenges DESC
+                    ''')
+                    
+                    teams = [{
+                        'id': row[0],
+                        'name': row[1],
+                        'member_count': row[2],
+                        'solved_challenges': row[3],
+                        'total_points': row[4],
+                        'categories': row[5].split(',') if row[5] else []
+                    } for row in c.fetchall()]
+                    
+                    if teams != last_data:
+                        socketio.emit('leaderboard_update', teams)
+                        last_data = teams
+                finally:
+                    conn.close()
+        except Exception as e:
+            logging.error(f"Error in background task: {str(e)}")
+        
+        eventlet.sleep(5)
+
+# Update Socket.IO event handlers
+@socketio.on('connect')
+def handle_connect():
+    with app.app_context():
+        logging.info('Client connected')
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        try:
+            c.execute('''
+                SELECT 
+                    t.id,
+                    t.name,
+                    COUNT(DISTINCT u.id) as member_count,
+                    COUNT(DISTINCT sc.challenge_id) as solved_challenges,
+                    t.points as total_points,
+                    GROUP_CONCAT(DISTINCT c.category) as categories
+                FROM teams t
+                LEFT JOIN users u ON t.id = u.team_id
+                LEFT JOIN solved_challenges sc ON u.id = sc.user_id
+                LEFT JOIN challenges c ON sc.challenge_id = c.id
+                WHERE t.is_banned = 0
+                GROUP BY t.id
+                ORDER BY t.points DESC, solved_challenges DESC
+            ''')
+            
+            teams = [{
+                'id': row[0],
+                'name': row[1],
+                'member_count': row[2],
+                'solved_challenges': row[3],
+                'total_points': row[4],
+                'categories': row[5].split(',') if row[5] else []
+            } for row in c.fetchall()]
+            
+            emit('leaderboard_update', teams)
+        finally:
+            conn.close()
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    logging.info('Client disconnected')  # Updated log instead of print
+
+# Add port checking function
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(('localhost', port))
+            return False
+        except socket.error:
+            return True
+
+# Find available port
+def find_available_port(start_port=5000):
+    port = start_port
+    while is_port_in_use(port):
+        port += 1
+        if port > start_port + 100:  # Limit search to 100 ports
+            raise RuntimeError("No available ports found")
+    return port
+
+
+# Add error handler for 404 - Page Not Found
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('client/404.html'), 404
+
+@app.route('/api/admin/settings', methods=['GET'])
+@admin_required
+def get_settings():
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get basic settings
+        c.execute('SELECT key, value FROM settings')
+        settings = dict(c.fetchall())
+        
+        # Get CTF timing
+        c.execute('''SELECT start_time, end_time 
+                    FROM setting_date_time 
+                    ORDER BY id DESC LIMIT 1''')
+        timing = c.fetchone()
+        
+        if timing:
+            settings['ctf_start_time'] = timing[0]
+            settings['ctf_end_time'] = timing[1]
+        else:
+            # Set default timing if none exists
+            default_start = datetime.now().replace(hour=10, minute=0) + timedelta(days=1)
+            default_end = default_start.replace(hour=22, minute=0)
+            settings['ctf_start_time'] = default_start.strftime('%Y-%m-%dT%H:%M')
+            settings['ctf_end_time'] = default_end.strftime('%Y-%m-%dT%H:%M')
+        
+        # Add default values if settings don't exist
+        default_settings = {
+            'allow_registration': 'false',
+            'allow_team_creation': 'false',
+            'min_team_size': '1',
+            'max_team_size': '4'
+        }
+        
+        # Update settings with defaults for missing values
+        for key, default_value in default_settings.items():
+            if key not in settings:
+                c.execute('INSERT INTO settings (key, value) VALUES (?, ?)',
+                         (key, default_value))
+                settings[key] = default_value
+        
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'settings': settings
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/settings', methods=['POST'])
+@admin_required
+def update_settings():  # Removed @login_required
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        data = request.get_json()
+        
+        # Validate team size values
+        min_team_size = int(data.get('min_team_size', 1))
+        max_team_size = int(data.get('max_team_size', 4))
+        
+        if min_team_size < 1:
+            raise ValueError('Minimum team size cannot be less than 1')
+        if max_team_size > 10:
+            raise ValueError('Maximum team size cannot exceed 10')
+        if min_team_size > max_team_size:
+            raise ValueError('Minimum team size cannot be greater than maximum team size')
+        
+        # Update settings
+        settings_to_update = {
+            'allow_registration': str(data.get('allow_registration')).lower(),
+            'allow_team_creation': str(data.get('allow_team_creation')).lower(),
+            'min_team_size': str(min_team_size),
+            'max_team_size': str(max_team_size),
+            'theme': data.get('theme', 'dark'),
+            'logo_url': data.get('logo_url', ''),
+            'platform_name': data.get('platform_name', 'Zero Day Arena'),
+            'platform_description': data.get('platform_description', 'A CTF Platform for Cybersecurity Enthusiasts')
+        }
+        
+        for key, value in settings_to_update.items():
+            c.execute('''INSERT OR REPLACE INTO settings (key, value) 
+                        VALUES (?, ?)''', (key, value))
+        
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Settings updated successfully'
+        })
+        
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 400
+    except Exception as e:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/settings/reset-ctf', methods=['POST'])
+@admin_required
+def reset_ctf_endpoint():  # Changed name to be unique
+    try:
+        reset_ctf_timing()
+        return jsonify({
+            'success': True,
+            'message': 'CTF timing has been reset'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/api/admin/teams/search')
+@admin_required
+def search_teams():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+        
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Search for teams that match the query
+        c.execute('''
+            SELECT t.id, t.name, COUNT(u.id) as member_count
+            FROM teams t
+            LEFT JOIN users u ON t.id = u.team_id
+            WHERE t.name LIKE ? AND t.is_banned = 0
+            GROUP BY t.id
+            ORDER BY t.name
+            LIMIT 10
+        ''', (f'%{query}%',))
+        
+        teams = [{
+            'id': row[0],
+            'name': row[1],
+            'member_count': row[2]
+        } for row in c.fetchall()]
+        
+        return jsonify(teams)
+        
+    except Exception as e:
+        logging.error(f"Error searching teams: {str(e)}")
+        return jsonify([])
+    finally:
+        conn.close()
+
+@app.route('/api/admin/users/search')
+@admin_required
+def search_users():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+        
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Search for users that match the query
+        c.execute('''
+            SELECT u.id, u.username, t.name as team_name
+            FROM users u
+            LEFT JOIN teams t ON u.team_id = t.id
+            WHERE u.username LIKE ?
+            ORDER BY u.username
+            LIMIT 10
+        ''', (f'%{query}%',))
+        
+        users = [{
+            'id': row[0],
+            'username': row[1],
+            'team_name': row[2]
+        } for row in c.fetchall()]
+        
+        return jsonify(users)
+        
+    except Exception as e:
+        logging.error(f"Error searching users: {str(e)}")
+        return jsonify([])
+    finally:
+        conn.close()
+
+# Add notification helper function
+def send_notification(title, message, user_id=None, team_id=None, play_sound=False):
+    """Helper function to send notifications"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    try:
+        c.execute('''INSERT INTO notifications 
+                    (title, message, user_id, team_id, play_sound)
+                    VALUES (?, ?, ?, ?, ?)''',
+                 (title, message, user_id, team_id, play_sound))
+        notification_id = c.lastrowid
+        conn.commit()
+        
+        # Prepare notification data
+        notification_data = {
+            'id': notification_id,
+            'title': title,
+            'message': message,
+            'playSound': play_sound,
+            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'userId': user_id,
+            'teamId': team_id
+        }
+        
+        # Emit through WebSocket
+        socketio.emit('new_notification', notification_data)
+        return notification_id
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+# Update the admin notification route
+@app.route('/api/admin/notifications/send', methods=['POST'])
+@admin_required
+def admin_send_notification():
+    try:
+        data = request.get_json()
+        if not data or not data.get('title') or not data.get('message') or not data.get('target'):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required fields'
+            }), 400
+
+        try:
+            notification_id = send_notification(
+                title=data['title'],
+                message=data['message'],
+                user_id=data['userId'] if data['target'] == 'user' else None,
+                team_id=data['teamId'] if data['target'] == 'team' else None,
+                play_sound=data.get('playSound', False)
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Notification sent successfully',
+                'notification_id': notification_id
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'Error sending notification: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+
+
+
+# Add these routes for admin authentication
 
 if __name__ == '__main__':
     try:
