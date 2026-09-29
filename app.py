@@ -3256,6 +3256,543 @@ def admin_send_notification():
 
 
 # Add these routes for admin authentication
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    # Clear any existing non-admin session
+    if 'user_id' in session:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        try:
+            # Verify if current session user is admin
+            c.execute('SELECT is_admin FROM users WHERE id = ? AND is_admin = 1', 
+                     (session['user_id'],))
+            admin_user = c.fetchone()
+            
+            if not admin_user:
+                session.clear()
+        finally:
+            conn.close()
+    
+    # If user is already logged in as admin, redirect to admin root
+    if session.get('user_id') and session.get('is_admin'):
+        return redirect(url_for('admin_root'))
+        
+    if request.method == 'GET':
+        return render_template('admin/login.html')
+        
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            password = hash_password(request.form.get('password'))
+            
+            if not email or not password:
+                return jsonify({
+                    'success': False,
+                    'message': 'Email and password are required'
+                }), 400
+            
+            conn = sqlite3.connect(DATABASE_PATH)
+            c = conn.cursor()
+            
+            try:
+                # Verify admin credentials and status
+                c.execute('''
+                    SELECT id, username 
+                    FROM users 
+                    WHERE email = ? 
+                    AND password = ? 
+                    AND is_admin = 1
+                ''', (email, password))
+                
+                admin_user = c.fetchone()
+                
+                if admin_user:
+                    session.clear()  # Clear any existing session
+                    session['user_id'] = admin_user[0]
+                    session['username'] = admin_user[1]
+                    session['is_admin'] = True
+                    return jsonify({
+                        'success': True,
+                        'message': 'Admin login successful',
+                        'redirect': url_for('admin_root')
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Not Found'
+                    }), 404
+                    
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            logging.error(f"Admin login error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Not Found'
+            }), 404
+            
+    return render_template('admin/login.html')
+
+# Add admin_required decorator
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_id = session.get('user_id')
+        if not user_id:
+            return render_template('client/404.html'), 404
+            
+        # Verify user exists and is admin in database
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        try:
+            # Get user details and verify is_admin=1
+            c.execute('''
+                SELECT id, username, is_admin 
+                FROM users 
+                WHERE id = ? AND is_admin = 1
+            ''', (user_id,))
+            admin_user = c.fetchone()
+            
+            if not admin_user:
+                # User exists but is not admin (is_admin != 1)
+                session.pop('is_admin', None)  # Remove invalid admin flag
+                if request.path.startswith('/api/'):
+                    return jsonify({
+                        'success': False,
+                        'message': 'Not Found'
+                    }), 404
+                return render_template('client/404.html'), 404
+                
+            # Update session with verified admin data
+            session['is_admin'] = True
+            session['username'] = admin_user[1]
+                
+        finally:
+            conn.close()
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Add a function to initialize team points from existing data
+def init_team_points():
+    """Initialize team points to 0 for new teams only"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    try:
+        # Only set points to 0 for teams that don't have points set
+        c.execute('''
+            UPDATE teams 
+            SET points = 0
+            WHERE points IS NULL
+        ''')
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logging.error(f"Error initializing team points: {str(e)}")
+    finally:
+        conn.close()
+
+# Update the init_app function to include team points initialization
+def init_app():
+    """Initialize the application"""
+    try:
+        # Create database directory if it doesn't exist
+        os.makedirs(DATABASE_FOLDER, exist_ok=True)
+        
+        # Initialize database
+        init_db()
+        # Initialize team points
+        init_team_points()
+        logging.info("Application initialized successfully")
+    except Exception as e:
+        logging.error(f"Failed to initialize application: {str(e)}")
+        raise
+
+
+# Initialize Flask Mail
+app.config.from_object(Config)
+mail = Mail(app)
+
+# Update the register route
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        # Check if registration and team creation are allowed
+        allow_registration = is_setting_enabled('allow_registration')
+        allow_team_creation = is_setting_enabled('allow_team_creation')
+        
+        if not allow_registration:
+            flash('Registration is currently disabled')
+            return redirect(url_for('index'))
+            
+        return render_template('client/register.html', 
+                             allow_team_creation=allow_team_creation)
+
+    # POST request handling
+    if request.method == 'POST':
+        try:
+            # Check if registration is allowed
+            if not is_setting_enabled('allow_registration'):
+                return jsonify({
+                    'success': False,
+                    'message': 'Registration is currently disabled'
+                }), 403
+
+            # Get form data
+            email = request.form.get('email')
+            username = request.form.get('username')
+            password = request.form.get('password')
+            team_name = request.form.get('team_name')
+            team_code = request.form.get('team_code')
+
+            # Validate required fields
+            if not username or not email or not password:
+                return jsonify({
+                    'success': False,
+                    'message': 'All fields are required'
+                }), 400
+
+            # Validate password
+            if len(password) < 8:
+                return jsonify({
+                    'success': False,
+                    'message': 'Password must be at least 8 characters long'
+                }), 400
+
+            if not any(c.isupper() for c in password):
+                return jsonify({
+                    'success': False,
+                    'message': 'Password must contain at least one uppercase letter'
+                }), 400
+
+            if not any(c.islower() for c in password):
+                return jsonify({
+                    'success': False,
+                    'message': 'Password must contain at least one lowercase letter'
+                }), 400
+
+            if not any(c.isdigit() for c in password):
+                return jsonify({
+                    'success': False,
+                    'message': 'Password must contain at least one number'
+                }), 400
+
+            conn = sqlite3.connect(DATABASE_PATH)
+            c = conn.cursor()
+
+            try:
+                # Check if username exists
+                c.execute('SELECT id FROM users WHERE username = ?', (username,))
+                if c.fetchone():
+                    return jsonify({
+                        'success': False,
+                        'message': 'Username already exists'
+                    }), 400
+
+                # Check if email exists
+                c.execute('SELECT id FROM users WHERE email = ?', (email,))
+                if c.fetchone():
+                    return jsonify({
+                        'success': False,
+                        'message': 'Email already exists'
+                    }), 400
+
+                # Hash password
+                hashed_password = hash_password(password)
+
+                # Handle team creation/joining
+                team_id = None
+                is_leader = False
+
+                if team_name:
+                    # Check if team creation is allowed
+                    if not is_setting_enabled('allow_team_creation'):
+                        return jsonify({
+                            'success': False,
+                            'message': 'Team creation is currently disabled'
+                        }), 403
+
+                    # Check if team name exists
+                    c.execute('SELECT id FROM teams WHERE name = ?', (team_name,))
+                    if c.fetchone():
+                        return jsonify({
+                            'success': False,
+                            'message': 'Team name already exists'
+                        }), 400
+
+                    # Create new team
+                    team_code = generate_team_code()
+                    c.execute('''INSERT INTO teams (name, team_code)
+                                VALUES (?, ?)''', (team_name, team_code))
+                    team_id = c.lastrowid
+                    is_leader = True
+
+                elif team_code:
+                    # Check if team exists
+                    c.execute('SELECT id FROM teams WHERE team_code = ?', (team_code,))
+                    team = c.fetchone()
+                    if not team:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Invalid team code'
+                        }), 400
+
+                    team_id = team[0]
+
+                    # Check team size
+                    if not validate_team_size(team_id):
+                        return jsonify({
+                            'success': False,
+                            'message': 'Team has reached maximum size'
+                        }), 400
+
+                # Create user
+                c.execute('''INSERT INTO users 
+                            (username, email, password, team_id, is_leader)
+                            VALUES (?, ?, ?, ?, ?)''',
+                         (username, email, hashed_password, team_id, is_leader))
+
+                conn.commit()
+
+                return jsonify({
+                    'success': True,
+                    'message': 'Registration successful',
+                    'redirect': url_for('login')
+                })
+
+            except Exception as e:
+                conn.rollback()
+                return jsonify({
+                    'success': False,
+                    'message': f'Error during registration: {str(e)}'
+                }), 500
+            finally:
+                conn.close()
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'Error during registration: {str(e)}'
+            }), 500
+
+# Admin routes protection
+@app.before_request
+def check_admin_access():
+    """Check admin access before any request to admin routes"""
+    if request.path.startswith('/admin') or request.path.startswith('/api/admin'):
+        # Skip check for admin login page
+        if request.path == '/admin/login':
+            return None
+            
+        user_id = session.get('user_id')
+        if not user_id:
+            # No user session found
+            if request.path.startswith('/api/admin'):
+                return jsonify({
+                    'success': False,
+                    'message': 'Not Found'
+                }), 404
+            return render_template('client/404.html'), 404
+            
+        # Verify user exists and is admin in database
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        try:
+            # Get user details and verify is_admin=1
+            c.execute('''
+                SELECT id, username, is_admin 
+                FROM users 
+                WHERE id = ? AND is_admin = 1
+            ''', (user_id,))
+            admin_user = c.fetchone()
+            
+            if not admin_user:
+                # User exists but is not admin (is_admin != 1)
+                session.pop('is_admin', None)  # Remove invalid admin flag
+                if request.path.startswith('/api/admin'):
+                    return jsonify({
+                        'success': False,
+                        'message': 'Not Found'
+                    }), 404
+                return render_template('client/404.html'), 404
+                
+            # Update session with verified admin data
+            session['is_admin'] = True
+            session['username'] = admin_user[1]
+                
+        finally:
+            conn.close()
+            
+    return None
+
+@app.route('/api/admin/users/<int:user_id>/update', methods=['POST'])
+@admin_required
+def update_user_role(user_id):
+    data = request.json
+    conn = None
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        # Check if user exists
+        c.execute('SELECT id, username FROM users WHERE id = ?', (user_id,))
+        user = c.fetchone()
+        
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+            
+        # Update user role and status
+        c.execute('''
+            UPDATE users 
+            SET is_admin = ?, 
+                is_leader = ?
+            WHERE id = ?
+        ''', (
+            1 if data['role'] == 'admin' else 0,
+            1 if data['role'] == 'admin' else 0,
+            user_id
+        ))
+        
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': 'User role updated successfully'
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error updating user role: {str(e)}'
+        }), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/teams/<int:team_id>', methods=['DELETE'])
+@admin_required
+def delete_team(team_id):
+    conn = None
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        # Check if team exists
+        c.execute('SELECT id FROM teams WHERE id = ?', (team_id,))
+        team = c.fetchone()
+        
+        if not team:
+            return jsonify({
+                'success': False,
+                'message': 'Team not found'
+            }), 404
+            
+        # First update users that belong to this team
+        c.execute('UPDATE users SET team_id = NULL WHERE team_id = ?', (team_id,))
+        
+        # Delete the team
+        c.execute('DELETE FROM teams WHERE id = ?', (team_id,))
+        
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Team deleted successfully'
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error deleting team: {str(e)}'
+        }), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/challenges/files/<int:file_id>/download')
+@login_required
+def download_challenge_file(file_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    try:
+        # Get file info from database
+        c.execute('''SELECT cf.filepath, cf.filename, c.title 
+                    FROM challenge_files cf
+                    JOIN challenges c ON cf.challenge_id = c.id
+                    WHERE cf.id = ?''', (file_id,))
+        result = c.fetchone()
+        
+        if not result:
+            return jsonify({
+                'success': False,
+                'message': 'File not found'
+            }), 404
+            
+        filepath, filename, challenge_title = result
+        
+        # Construct full file path
+        full_path = os.path.join(app.config['UPLOAD_FOLDER'], filepath)
+        
+        if not os.path.exists(full_path):
+            return jsonify({
+                'success': False,
+                'message': 'File not found on server'
+            }), 404
+            
+        # Get file extension and guess MIME type
+        file_ext = os.path.splitext(filename)[1].lower()
+        mime_type = {
+            '.txt': 'text/plain',
+            '.pdf': 'application/pdf',
+            '.zip': 'application/zip',
+            '.rar': 'application/x-rar-compressed',
+            '.7z': 'application/x-7z-compressed',
+            '.tar': 'application/x-tar',
+            '.gz': 'application/gzip',
+            '.doc': 'application/msword',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.xls': 'application/vnd.ms-excel',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.mp4': 'video/mp4',
+            '.avi': 'video/x-msvideo',
+            '.py': 'text/x-python',
+            '.js': 'text/javascript',
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.json': 'application/json',
+            '.xml': 'application/xml',
+        }.get(file_ext, 'application/octet-stream')
+            
+        response = send_file(
+            full_path,
+            as_attachment=True,
+            mimetype=mime_type
+        )
+        
+        # Set the Content-Disposition header to use the exact filename
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+    finally:
+        conn.close()
 
 if __name__ == '__main__':
     try:
