@@ -3794,6 +3794,325 @@ def download_challenge_file(file_id):
     finally:
         conn.close()
 
+@app.route('/api/team/join', methods=['POST'])
+@login_required
+def join_team():
+    try:
+        data = request.get_json()
+        team_code = data.get('team_code')
+        
+        if not team_code:
+            return jsonify({
+                'success': False,
+                'message': 'Team code is required'
+            }), 400
+            
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # Check if user is already in a team
+            c.execute('SELECT team_id FROM users WHERE id = ?', (g.user['id'],))
+            if c.fetchone()[0]:
+                return jsonify({
+                    'success': False,
+                    'message': 'You are already in a team'
+                }), 400
+                
+            # Check if team exists
+            c.execute('SELECT id FROM teams WHERE team_code = ?', (team_code,))
+            team = c.fetchone()
+            if not team:
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid team code'
+                }), 400
+                
+            team_id = team[0]
+            
+            # Check team size
+            if not validate_team_size(team_id):
+                return jsonify({
+                    'success': False,
+                    'message': 'Team has reached maximum size'
+                }), 400
+                
+            # Join team
+            c.execute('UPDATE users SET team_id = ? WHERE id = ?',
+                     (team_id, g.user['id']))
+            
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Successfully joined team'
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Error joining team: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error joining team: {str(e)}'
+        }), 500
+
+@app.route('/api/team/create', methods=['POST'])
+@login_required
+def create_team():
+    try:
+        # Check if team creation is allowed
+        if not is_setting_enabled('allow_team_creation'):
+            return jsonify({
+                'success': False,
+                'message': 'Team creation is currently disabled'
+            }), 403
+            
+        data = request.get_json()
+        team_name = data.get('team_name')
+        
+        if not team_name:
+            return jsonify({
+                'success': False,
+                'message': 'Team name is required'
+            }), 400
+            
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # Check if user is already in a team
+            c.execute('SELECT team_id FROM users WHERE id = ?', (g.user['id'],))
+            if c.fetchone()[0]:
+                return jsonify({
+                    'success': False,
+                    'message': 'You are already in a team'
+                }), 400
+                
+            # Check if team name exists
+            c.execute('SELECT id FROM teams WHERE name = ?', (team_name,))
+            if c.fetchone():
+                return jsonify({
+                    'success': False,
+                    'message': 'Team name already exists'
+                }), 400
+                
+            # Create team
+            team_code = generate_team_code()
+            c.execute('''INSERT INTO teams (name, team_code)
+                        VALUES (?, ?)''', (team_name, team_code))
+            team_id = c.lastrowid
+            
+            # Update user to be team leader
+            c.execute('''UPDATE users 
+                        SET team_id = ?, is_leader = 1
+                        WHERE id = ?''', (team_id, g.user['id']))
+            
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Team created successfully',
+                'team_code': team_code
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Error creating team: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error creating team: {str(e)}'
+        }), 500
+
+@app.route('/api/team/leave', methods=['POST'])
+@login_required
+def leave_team():
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # Check if user is in a team
+            c.execute('''SELECT team_id, is_leader 
+                        FROM users WHERE id = ?''', (g.user['id'],))
+            user = c.fetchone()
+            
+            if not user[0]:
+                return jsonify({
+                    'success': False,
+                    'message': 'You are not in a team'
+                }), 400
+                
+            team_id = user[0]
+            is_leader = user[1]
+            
+            if is_leader:
+                # Check if there are other team members
+                c.execute('''SELECT COUNT(*) FROM users 
+                            WHERE team_id = ? AND id != ?''',
+                         (team_id, g.user['id']))
+                if c.fetchone()[0] > 0:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Team leaders cannot leave while other members exist'
+                    }), 400
+                    
+                # Delete team if leader is the only member
+                c.execute('DELETE FROM teams WHERE id = ?', (team_id,))
+            
+            # Remove user from team
+            c.execute('''UPDATE users 
+                        SET team_id = NULL, is_leader = 0
+                        WHERE id = ?''', (g.user['id'],))
+            
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Successfully left team'
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Error leaving team: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error leaving team: {str(e)}'
+        }), 500
+
+@app.route('/api/team/members/<int:member_id>/remove', methods=['POST'])
+@login_required
+def remove_team_member(member_id):
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # Check if current user is team leader
+            c.execute('''SELECT team_id, is_leader 
+                        FROM users WHERE id = ?''', (g.user['id'],))
+            current_user = c.fetchone()
+            
+            if not current_user[0] or not current_user[1]:
+                return jsonify({
+                    'success': False,
+                    'message': 'Only team leaders can remove members'
+                }), 403
+                
+            team_id = current_user[0]
+            
+            # Check if member exists and is in the same team
+            c.execute('''SELECT id, is_leader 
+                        FROM users 
+                        WHERE id = ? AND team_id = ?''',
+                     (member_id, team_id))
+            member = c.fetchone()
+            
+            if not member:
+                return jsonify({
+                    'success': False,
+                    'message': 'Member not found in team'
+                }), 404
+                
+            if member[1]:
+                return jsonify({
+                    'success': False,
+                    'message': 'Cannot remove team leader'
+                }), 403
+                
+            # Remove member from team
+            c.execute('''UPDATE users 
+                        SET team_id = NULL, is_leader = 0
+                        WHERE id = ?''', (member_id,))
+            
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Member removed successfully'
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Error removing member: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error removing member: {str(e)}'
+        }), 500
+
+@app.route('/api/team/delete', methods=['POST'])
+@login_required
+def delete_own_team():
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        
+        try:
+            # Check if user is team leader
+            c.execute('''SELECT team_id, is_leader 
+                        FROM users WHERE id = ?''', (g.user['id'],))
+            user = c.fetchone()
+            
+            if not user[0] or not user[1]:
+                return jsonify({
+                    'success': False,
+                    'message': 'Only team leaders can delete teams'
+                }), 403
+                
+            team_id = user[0]
+            
+            # Remove all members from team
+            c.execute('''UPDATE users 
+                        SET team_id = NULL, is_leader = 0
+                        WHERE team_id = ?''', (team_id,))
+            
+            # Delete team
+            c.execute('DELETE FROM teams WHERE id = ?', (team_id,))
+            
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Team deleted successfully'
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Error deleting team: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error deleting team: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     try:
 
